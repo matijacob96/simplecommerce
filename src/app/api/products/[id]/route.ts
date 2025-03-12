@@ -1,31 +1,6 @@
 import prisma from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
-function parseId(id: string | undefined): number {
-  if (!id) {
-    throw new Error("ID es requerido");
-  }
-  
-  const parsedId = parseInt(id);
-  if (isNaN(parsedId)) {
-    throw new Error("ID debe ser un número");
-  }
-  
-  return parsedId;
-}
-
-async function checkProductExists(id: number) {
-  const product = await prisma.product.findUnique({
-    where: { id },
-  });
-  
-  if (!product) {
-    throw new Error("Producto no encontrado");
-  }
-  
-  return product;
-}
-
 // GET para obtener un producto específico
 export async function GET(
   request: NextRequest,
@@ -69,10 +44,11 @@ export async function GET(
 // PUT para actualizar un producto existente
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } 
 ) {
   try {
-    const id = parseInt(params.id);
+    const paramsData = await params;
+    const id = parseInt(paramsData.id)
 
     if (isNaN(id)) {
       return NextResponse.json(
@@ -194,18 +170,20 @@ export async function PUT(
 // DELETE para eliminar un producto
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } 
 ) {
   try {
     // Asegurar que params.id sea válido
-    if (!params?.id) {
+    const paramsData = await params;
+    
+    if (!paramsData?.id) {
       return NextResponse.json(
         { error: "ID de producto no proporcionado" },
         { status: 400 }
       );
     }
 
-    const id = parseInt(params.id);
+    const id = parseInt(paramsData.id)
 
     if (isNaN(id)) {
       return NextResponse.json(
