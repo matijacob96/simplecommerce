@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  profit_margin Decimal?
+  created_at DateTime @default(now())
+  Product Product[]
+}
+
+model Product {
+  id        Int      @id @default(autoincrement())
+  name      String
+  stock     Int      @default(0)
+  price     Decimal  @default(0)
+  image     String?
+  category  Category? @relation(fields: [category_id], references: [id])
+  category_id Int?
+  SaleItem  SaleItem[]
+}
+
+model Order {
+  id          Int       @id @default(autoincrement())
+  product_name String
+  quantity    Int
+  supplier    String?
+  created_at  DateTime  @default(now())
+  shipping_cost Decimal @default(0.0)
+}
+
+model Setting {
+  id           Int      @id @default(autoincrement())
+  profit_margin Decimal @default(0.2)
+}
+
+model Customer {
+  id            Int       @id @default(autoincrement())
+  name          String
+  whatsapp      String?
+  instagram     String?
+  facebook      String?
+  first_purchase_date DateTime @default(now())
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  sales         Sale[]
+}
+
+model Sale {
+  id            Int       @id @default(autoincrement())
+  total         Decimal   @default(0)
+  payment_method String    @default("efectivo")
+  customer      Customer?  @relation(fields: [customer_id], references: [id])
+  customer_id   Int?
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+  exchange_rate Decimal?
+  items         SaleItem[]
+}
+
+model SaleItem {
+  id          Int       @id @default(autoincrement())
+  sale        Sale      @relation(fields: [sale_id], references: [id], onDelete: Cascade)
+  sale_id     Int
+  product     Product   @relation(fields: [product_id], references: [id])
+  product_id  Int
+  quantity    Int
+  selling_price Decimal
+  
+  @@unique([sale_id, product_id])
+}

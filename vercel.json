@@ -1,0 +1,6 @@
+{
+    "buildCommand": "prisma generate && bun node_modules/.bin/next build",
+    "installCommand": "bun install",
+    "outputDirectory": ".next",
+    "framework": "nextjs"
+}
