@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { calculateUsdPrice, calculateArsPrice, formatUsdPrice, formatArsPrice } from "@/utils/priceUtils";
 
@@ -66,12 +66,12 @@ function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const handler = setTimeout(() => {
       setDebouncedValue(value);
     }, delay);
 
     return () => {
-      clearTimeout(timer);
+      clearTimeout(handler);
     };
   }, [value, delay]);
 
@@ -80,7 +80,8 @@ function useDebounce<T>(value: T, delay: number): T {
 
 const AppStateContext = createContext<AppStateContextType | undefined>(undefined);
 
-export function AppStateProvider({ children }: { children: React.ReactNode }) {
+// Componente interno que usa useSearchParams
+function AppStateProviderContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -261,109 +262,114 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     router.push(newPathname);
   }, [searchParams, router]);
 
+  // Método para buscar
   const handleSearchSubmit = () => {
     updateUrlWithFilters({ search });
   };
 
+  // Método para limpiar búsqueda
   const handleSearchClear = () => {
-    setSearch("");
-    updateUrlWithFilters({ search: "" });
+    setSearch('');
+    updateUrlWithFilters({ search: '' });
   };
 
+  // Método para cambiar categoría
   const handleCategoryChange = (value: string) => {
     setFilter(value);
     updateUrlWithFilters({ category: value });
   };
 
+  // Método para cambiar disponibilidad
   const handleAvailabilityChange = (value: boolean) => {
     setOnlyAvailable(value);
     updateUrlWithFilters({ available: value });
   };
 
-  // Función para calcular precios
+  // Método para obtener precios
   const getPrices = useCallback((product: Product) => {
-    if (!product || !dolarBlue) {
-      return {
-        usdPrice: 0,
-        arsPrice: 0,
-        formattedUsd: formatUsdPrice(0),
-        formattedArs: formatArsPrice(0)
-      };
-    }
-
+    // Usar caché si existe
     if (priceCache.current[product.id]) {
       return priceCache.current[product.id];
     }
 
-    let categoryMargin = defaultProfitMargin;
-    if (product.category?.profit_margin !== undefined && product.category.profit_margin !== null) {
-      categoryMargin = Number(product.category.profit_margin);
-      if (isNaN(categoryMargin)) categoryMargin = defaultProfitMargin;
+    // Si no hay dólar o categorías, devolver valores predeterminados
+    if (!dolarBlue || !categories.length) {
+      return {
+        usdPrice: product.price,
+        arsPrice: product.price * 1000,
+        formattedUsd: formatUsdPrice(product.price),
+        formattedArs: formatArsPrice(product.price * 1000)
+      };
     }
-    
-    const productPrice = Number(product.price) || 0;
-    const catMargin = typeof categoryMargin === 'number' && !isNaN(categoryMargin) ? categoryMargin : defaultProfitMargin;
-    const defMargin = defaultProfitMargin || 0.2;
-    
-    const usdPrice = calculateUsdPrice(productPrice, catMargin, defMargin);
+
+    // Obtener margen de ganancia
+    let profitMargin = defaultProfitMargin;
+    if (product.category && product.category.profit_margin !== null && product.category.profit_margin !== undefined) {
+      profitMargin = product.category.profit_margin;
+    } else {
+      const category = categories.find(c => c.id === product.category_id);
+      if (category && category.profit_margin !== null && category.profit_margin !== undefined) {
+        profitMargin = category.profit_margin;
+      }
+    }
+
+    // Calcular precios
+    const usdPrice = calculateUsdPrice(product.price, profitMargin);
     const arsPrice = calculateArsPrice(usdPrice, dolarBlue.venta);
-    
+
+    // Formatear precios
     const result = {
       usdPrice,
       arsPrice,
       formattedUsd: formatUsdPrice(usdPrice),
       formattedArs: formatArsPrice(arsPrice)
     };
-    
-    priceCache.current[product.id] = result;
-    
-    return result;
-  }, [dolarBlue, defaultProfitMargin]);
 
-  // Función para recargar todos los datos
+    // Guardar en caché
+    priceCache.current[product.id] = result;
+
+    return result;
+  }, [dolarBlue, categories, defaultProfitMargin]);
+
+  // Método para refrescar datos
   const refreshData = async () => {
-    setLoading(true);
-    
     try {
-      // Cargar productos y dólar en paralelo
-      await Promise.all([
-        fetch(`/api/products?${searchParam ? 'search=' + encodeURIComponent(searchParam) + '&' : ''}filter=${encodeURIComponent(categoryParam)}`)
-          .then(response => {
-            if (!response.ok) throw new Error('Error al cargar productos');
-            return response.json();
-          })
-          .then(data => {
-            setProducts(data);
-            return true;
-          })
-          .catch(error => {
-            console.error("Error al recargar productos:", error);
-            return false;
-          }),
-        
-        fetch("/api/dolar-blue")
-          .then(response => {
-            if (!response.ok) throw new Error('Error al cargar dólar blue');
-            return response.json();
-          })
-          .then(({ data }) => {
-            setDolarBlue(data);
-            return true;
-          })
-          .catch(error => {
-            console.error("Error al recargar dólar blue:", error);
-            return false;
-          })
-      ]);
+      setLoading(true);
+      
+      // Cargar categorías
+      const catResponse = await fetch("/api/categories");
+      if (catResponse.ok) {
+        const catData = await catResponse.json();
+        setCategories(catData);
+      }
+      
+      // Cargar productos
+      const prodResponse = await fetch(
+        `/api/products?${searchParam ? 'search=' + encodeURIComponent(searchParam) + '&' : ''}filter=${encodeURIComponent(filter)}`
+      );
+      if (prodResponse.ok) {
+        const prodData = await prodResponse.json();
+        setProducts(prodData);
+      }
+      
+      // Cargar dólar blue
+      const dolarResponse = await fetch("/api/dolar-blue");
+      if (dolarResponse.ok) {
+        const { data } = await dolarResponse.json();
+        setDolarBlue(data);
+      }
+      
+      // Resetear caché
+      priceCache.current = {};
+      
     } catch (error) {
-      console.error("Error al recargar datos:", error);
+      console.error("Error al refrescar datos:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Valor del contexto
-  const value = {
+  const contextValue: AppStateContextType = {
     // Estados
     products,
     filteredProducts,
@@ -390,16 +396,27 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AppStateContext.Provider value={value}>
+    <AppStateContext.Provider value={contextValue}>
       {children}
     </AppStateContext.Provider>
+  );
+}
+
+// Componente principal con Suspense boundary
+export function AppStateProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<div>Cargando estado de la aplicación...</div>}>
+      <AppStateProviderContent>
+        {children}
+      </AppStateProviderContent>
+    </Suspense>
   );
 }
 
 export function useAppState() {
   const context = useContext(AppStateContext);
   if (context === undefined) {
-    throw new Error('useAppState debe ser usado dentro de un AppStateProvider');
+    throw new Error('useAppState debe usarse dentro de un AppStateProvider');
   }
   return context;
 } 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react";
 import { Input, Select, Card, Spin, Empty, Space, Typography, Row, Col, Image, Divider, Switch, Button, Tooltip, Skeleton, Drawer } from "antd";
 import { SearchOutlined, FilterOutlined, InboxOutlined, DollarOutlined } from "@ant-design/icons";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -79,7 +79,8 @@ const scrollbarStyles = `
   }
 `;
 
-export default function Catalog() {
+// Componente interno que usa useSearchParams
+function CatalogContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -567,5 +568,25 @@ export default function Catalog() {
         </div>
       </div>
     </>
+  );
+}
+
+// Componente principal con Suspense boundary
+export default function Catalog() {
+  return (
+    <Suspense fallback={
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 64,
+        width: '100%',
+        height: 'calc(100vh - 64px)'
+      }}>
+        <Spin size="large" />
+      </div>
+    }>
+      <CatalogContent />
+    </Suspense>
   );
 }

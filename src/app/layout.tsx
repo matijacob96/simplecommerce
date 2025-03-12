@@ -34,7 +34,7 @@ export default function RootLayout({
                         justifyContent: 'center', 
                         alignItems: 'center' 
                       }}>
-                        <Spin size="large" tip="Cargando aplicación..." />
+                        <Spin size="large" tip="Cargando aplicación..." fullscreen/>
                       </div>
                     }>
                       <RouteGuard>
