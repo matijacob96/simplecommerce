@@ -3,25 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
-import { UserRole } from '@/lib/auth';
-import { Spin, Button, Result } from 'antd';
 import { getStoredUser } from '@/lib/auth';
-
-interface RouteConfig {
-  path: string;
-  allowedRoles: UserRole[];
-}
-
-// Configuración de rutas protegidas
-const protectedRoutes: RouteConfig[] = [
-  { path: '/sales', allowedRoles: ['admin', 'vendedor'] },
-  { path: '/customers', allowedRoles: ['admin', 'vendedor'] },
-  { path: '/pedidos', allowedRoles: ['admin', 'vendedor'] },
-  { path: '/products', allowedRoles: ['admin'] },
-  { path: '/categories', allowedRoles: ['admin'] },
-  { path: '/settings', allowedRoles: ['admin'] },
-  { path: '/settings/users', allowedRoles: ['admin'] },
-];
+import { Spin, Button, Result } from 'antd';
+import { getProtectedRoutes, canAccessRoute } from '@/lib/routes-config';
 
 // Tiempo máximo de espera en ms (10 segundos)
 const MAX_LOADING_TIME = 10000;
@@ -69,6 +53,9 @@ export function RouteGuard({ children }: RouteGuardProps) {
     // No hacer nada hasta que se complete la carga (o se agote el tiempo de espera)
     if (isLoading && !loadingTimedOut) return;
 
+    // Obtener la lista de rutas protegidas
+    const protectedRoutes = getProtectedRoutes();
+    
     // Buscar la configuración de la ruta actual
     const matchedRoute = protectedRoutes.find(route => 
       pathname === route.path || pathname.startsWith(`${route.path}/`)
@@ -84,7 +71,7 @@ export function RouteGuard({ children }: RouteGuardProps) {
     }
 
     // Verificar si el usuario tiene el rol necesario para acceder
-    const hasAccess = matchedRoute.allowedRoles.includes(userRole);
+    const hasAccess = canAccessRoute(pathname, userRole);
     
     // Si no tiene acceso, redirigir al catálogo
     if (!hasAccess) {

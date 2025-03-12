@@ -1,8 +1,9 @@
 "use client"
 import { useState, useEffect } from "react";
-import { Typography, Flex, Layout, Menu, Button, Drawer, Image, Dropdown, Space, Avatar, Tooltip } from "antd";
+import { Typography, Flex, Layout, Menu, Button, Drawer, Dropdown, Tooltip } from "antd";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import {
     ShoppingOutlined,
     SettingOutlined,
@@ -18,9 +19,28 @@ import {
 } from "@ant-design/icons";
 import { useAuth } from "@/lib/AuthContext";
 import { LoginModal } from "./LoginModal";
+import { getMenuItemsByRole } from "@/lib/routes-config";
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 const { Header } = Layout;
+
+// Constante para la URL del logo con parámetro de versión
+const LOGO_URL = "https://hglajudlstlnvfukamvh.supabase.co/storage/v1/object/public/images-bucket/assets/logo-simple-commerce.png?v=1.1";
+
+// Mapa de iconos para facilitar la referencia dinámica
+const iconMap: Record<string, React.ReactNode> = {
+    ShoppingOutlined: <ShoppingOutlined />,
+    SettingOutlined: <SettingOutlined />,
+    AppstoreOutlined: <AppstoreOutlined />,
+    OrderedListOutlined: <OrderedListOutlined />,
+    InboxOutlined: <InboxOutlined />,
+    ShoppingCartOutlined: <ShoppingCartOutlined />,
+    UserOutlined: <UserOutlined />,
+    MenuOutlined: <MenuOutlined />,
+    LogoutOutlined: <LogoutOutlined />,
+    LoginOutlined: <LoginOutlined />,
+    UserAddOutlined: <UserAddOutlined />
+};
 
 export function CustomHeader() {
     const pathname = usePathname();
@@ -43,6 +63,20 @@ export function CustomHeader() {
         
         return () => window.removeEventListener('resize', checkIsMobile);
     }, []);
+
+    // Asegurarse que el menú se actualice cuando cambia el estado de autenticación
+    useEffect(() => {
+        if (isAuthenticated && drawerVisible) {
+            // Cerrar el drawer si el usuario ya se autenticó y estaba abierto
+            setDrawerVisible(false);
+        }
+        
+        // Forzar rechecking del tamaño para asegurar layout correcto después del login
+        const checkIsMobile = () => {
+            setIsMobile(window.innerWidth < 992);
+        };
+        checkIsMobile();
+    }, [isAuthenticated, drawerVisible]);
 
     // Función para mostrar/ocultar el drawer
     const toggleDrawer = () => {
@@ -83,68 +117,18 @@ export function CustomHeader() {
         },
     ];
 
-    // Filtrar elementos del menú según el rol del usuario
+    // Obtener los elementos del menú según el rol del usuario 
+    // usando la configuración centralizada
     const getFilteredMenuItems = () => {
-        const allMenuItems = [
-            {
-                key: "/",
-                label: <Link href="/">Catálogo</Link>,
-                icon: <ShoppingOutlined />,
-                allowedRoles: ['admin', 'vendedor', 'anonimo'], // Todos pueden ver el catálogo
-            },
-            {
-                key: "/sales",
-                label: <Link href="/sales">Ventas</Link>,
-                icon: <ShoppingCartOutlined />,
-                allowedRoles: ['admin', 'vendedor'], // Solo admin y vendedor
-            },
-            {
-                key: "/customers",
-                label: <Link href="/customers">Clientes</Link>,
-                icon: <UserOutlined />,
-                allowedRoles: ['admin', 'vendedor'], // Solo admin y vendedor
-            },
-            {
-                key: "/pedidos",
-                label: <Link href="/pedidos">Pedidos</Link>,
-                icon: <OrderedListOutlined />,
-                allowedRoles: ['admin', 'vendedor'], // Solo admin y vendedor
-            },
-            {
-                key: "/products",
-                label: <Link href="/products">Productos</Link>,
-                icon: <InboxOutlined />,
-                allowedRoles: ['admin'], // Solo admin
-            },
-            {
-                key: "/categories",
-                label: <Link href="/categories">Categorías</Link>,
-                icon: <AppstoreOutlined />,
-                allowedRoles: ['admin'], // Solo admin
-            },
-            {
-                key: "/settings",
-                label: <Link href="/settings">Configuración</Link>,
-                icon: <SettingOutlined />,
-                allowedRoles: ['admin'], // Solo admin
-            },
-            {
-                key: "/settings/users",
-                label: <Link href="/settings/users">Usuarios</Link>,
-                icon: <UserAddOutlined />,
-                allowedRoles: ['admin'], // Solo admin puede gestionar usuarios
-            },
-        ];
-
-        // Si es administrador, devolver todos los elementos
-        if (userRole === 'admin') {
-            return allMenuItems.map(({ key, label, icon }) => ({ key, label, icon }));
-        }
-
-        // De lo contrario, filtrar según el rol del usuario
-        return allMenuItems
-            .filter(item => item.allowedRoles.includes(userRole))
-            .map(({ key, label, icon }) => ({ key, label, icon }));
+        // Obtener las rutas permitidas para el rol del usuario
+        const allowedRoutes = getMenuItemsByRole(userRole);
+        
+        // Transformar rutas a formato de elementos del menú de Ant Design
+        return allowedRoutes.map(route => ({
+            key: route.path,
+            label: <Link href={route.path}>{route.label}</Link>,
+            icon: route.icon && iconMap[route.icon] ? iconMap[route.icon] : null
+        }));
     };
 
     const filteredMenuItems = getFilteredMenuItems();
@@ -159,9 +143,11 @@ export function CustomHeader() {
                     <Flex align="center">
                         <Link href="/" style={{ display: 'flex', alignItems: 'center', color: 'white', textDecoration: 'none' }}>
                             <div style={{ display: 'flex', alignItems: 'center' }}>
-                                <img 
-                                    src="https://xqbotozdwyikueurdhof.supabase.co/storage/v1/object/public/images-bucket/assets/logo-simple-commerce.png"
+                                <Image 
+                                    src={LOGO_URL}
                                     alt="Simple Commerce Logo"
+                                    width={32}
+                                    height={32}
                                     style={{ maxHeight: '32px' }}
                                 />
                             </div>
@@ -188,9 +174,11 @@ export function CustomHeader() {
                     <Flex align="center">
                         <Link href="/" style={{ display: 'flex', alignItems: 'center', color: 'white', textDecoration: 'none' }}>
                             <div style={{ display: 'flex', alignItems: 'center' }}>
-                                <img 
-                                    src="https://xqbotozdwyikueurdhof.supabase.co/storage/v1/object/public/images-bucket/assets/logo-simple-commerce.png"
+                                <Image 
+                                    src={LOGO_URL}
                                     alt="Simple Commerce Logo"
+                                    width={32}
+                                    height={32}
                                     style={{ maxHeight: '32px' }}
                                 />
                             </div>
@@ -206,14 +194,21 @@ export function CustomHeader() {
                     </Flex>
                     
                     {/* Menú en Desktop */}
-                    <Flex align="center">
+                    <Flex align="center" style={{ flex: 1, justifyContent: 'flex-end' }}>
                         {!isMobile && (
                             <Menu 
                                 theme="dark" 
                                 mode="horizontal" 
                                 selectedKeys={[pathname]} 
                                 items={filteredMenuItems}
-                                style={{ backgroundColor: "transparent", border: "none" }}
+                                style={{ 
+                                    backgroundColor: "transparent", 
+                                    border: "none",
+                                    width: 'auto',
+                                    flex: 1,
+                                    display: 'flex',
+                                    justifyContent: 'flex-end'
+                                }}
                             />
                         )}
                         
@@ -248,36 +243,39 @@ export function CustomHeader() {
                         {isMobile && (
                             <Button 
                                 type="text" 
-                                icon={<MenuOutlined style={{ fontSize: '18px', color: 'white' }} />} 
-                                onClick={toggleDrawer}
-                                style={{ marginLeft: 8 }}
+                                icon={<MenuOutlined />} 
+                                onClick={toggleDrawer} 
+                                style={{ color: 'white' }}
                             />
                         )}
                     </Flex>
                 </Flex>
+            </Header>
+            
+            {/* Drawer para menú en mobile */}
+            <Drawer
+                title="Menú"
+                placement="right"
+                onClose={toggleDrawer}
+                open={drawerVisible}
+                styles={{body: {padding: 0}}}
+                width={280}
+            >
+                <Menu
+                    mode="inline"
+                    selectedKeys={[pathname]}
+                    items={filteredMenuItems}
+                    style={{ height: '100%' }}
+                />
                 
-                {/* Drawer para mobile */}
-                <Drawer
-                    title="Menú"
-                    placement="right"
-                    onClose={toggleDrawer}
-                    open={drawerVisible}
-                    width={280}
-                >
-                    <Menu 
-                        mode="vertical" 
-                        selectedKeys={[pathname]} 
-                        items={filteredMenuItems}
-                        style={{ border: "none" }}
-                        onClick={() => setDrawerVisible(false)}
-                    />
-                    
+                {/* Botón de login/logout en menú móvil */}
+                <div style={{ padding: '16px' }}>
                     {isAuthenticated ? (
                         <Button 
+                            type="primary" 
                             icon={<LogoutOutlined />} 
-                            onClick={handleLogout} 
-                            block 
-                            style={{ marginTop: 16 }}
+                            onClick={handleLogout}
+                            block
                         >
                             Cerrar Sesión
                         </Button>
@@ -285,21 +283,20 @@ export function CustomHeader() {
                         <Button 
                             type="primary" 
                             icon={<LoginOutlined />} 
-                            onClick={() => {
-                                setDrawerVisible(false);
-                                showLoginModal();
-                            }} 
-                            block 
-                            style={{ marginTop: 16 }}
+                            onClick={showLoginModal}
+                            block
                         >
                             Iniciar Sesión
                         </Button>
                     )}
-                </Drawer>
-            </Header>
+                </div>
+            </Drawer>
             
             {/* Modal de login */}
-            <LoginModal open={loginModalVisible} onClose={hideLoginModal} />
+            <LoginModal
+                open={loginModalVisible}
+                onClose={hideLoginModal}
+            />
         </>
     );
 }

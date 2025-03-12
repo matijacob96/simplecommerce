@@ -34,13 +34,15 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import type { InputRef } from "antd/es/input";
 import type { UploadFile, UploadProps } from "antd/es/upload/interface";
-import supabase from "@/lib/supabase";
 import {
     calculateUsdPrice,
     calculateArsPrice,
     formatUsdPrice,
     formatArsPrice
 } from "@/utils/priceUtils";
+import type { TablePaginationConfig } from 'antd/es/table';
+import type { SorterResult } from 'antd/es/table/interface';
+import type { FilterValue } from 'antd/es/table/interface';
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
@@ -111,8 +113,8 @@ export default function ProductsPage() {
     
     // Estado para ordenamiento
     const [sortedInfo, setSortedInfo] = useState<{
-        columnKey?: string | null,
-        order?: 'ascend' | 'descend' | null
+        columnKey: string | null;
+        order: 'ascend' | 'descend' | null;
     }>({
         columnKey: 'id',
         order: 'ascend'
@@ -151,10 +153,13 @@ export default function ProductsPage() {
                 setLoading(false);
             }
         });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Función para actualizar estados de forma segura
-    const safeSetState = (setter: any, value: any) => {
+    type StateSetter<T> = React.Dispatch<React.SetStateAction<T>>;
+
+    const safeSetState = <T,>(setter: StateSetter<T>, value: T) => {
         if (isMounted.current) {
             setter(value);
         }
@@ -194,7 +199,11 @@ export default function ProductsPage() {
     };
 
     // Función para manejar cambios en la tabla (ordenamiento)
-    const handleTableChange = (pagination: any, filters: any, sorter: any) => {
+    const handleTableChange = (
+        pagination: TablePaginationConfig,
+        filters: Record<string, FilterValue | null>,
+        sorter: SorterResult<Product> | SorterResult<Product>[]
+    ) => {
         // Si estamos en cambio de página o el componente está desmontado, ignorar el cambio
         if (!isMounted.current || isPageChanging.current) return;
         
@@ -202,19 +211,28 @@ export default function ProductsPage() {
             // Verificamos si sorter es un array (múltiples columnas) o un solo objeto
             if (Array.isArray(sorter)) {
                 // Si hay múltiples ordenamientos, tomamos el primero
-                if (sorter.length > 0) {
+                if (sorter.length > 0 && sorter[0]) {
+                    const columnKey = typeof sorter[0].columnKey === 'string' ? sorter[0].columnKey : null;
+                    const order = sorter[0].order || null;
+                    
                     safeSetState(setSortedInfo, {
-                        columnKey: sorter[0].columnKey,
-                        order: sorter[0].order
+                        columnKey,
+                        order: order as 'ascend' | 'descend' | null
                     });
                 } else {
-                    safeSetState(setSortedInfo, {});
+                    safeSetState(setSortedInfo, {
+                        columnKey: null, 
+                        order: null
+                    } as { columnKey: string | null; order: 'ascend' | 'descend' | null });
                 }
             } else {
                 // Un solo ordenamiento
+                const columnKey = typeof sorter.columnKey === 'string' ? sorter.columnKey : null;
+                const order = sorter.order || null;
+                
                 safeSetState(setSortedInfo, {
-                    columnKey: sorter.columnKey || null,
-                    order: sorter.order || null
+                    columnKey,
+                    order: order as 'ascend' | 'descend' | null
                 });
             }
         } catch (e) {
@@ -286,7 +304,12 @@ export default function ProductsPage() {
     };
 
     // Función para manejar la subida de archivos
-    const handleFileChange = (info: any) => {
+    type FileChangeInfo = {
+        file: UploadFile;
+        fileList: UploadFile[];
+    };
+
+    const handleFileChange = (info: FileChangeInfo) => {
         const { file, fileList: newFileList } = info;
         setFileList(newFileList);
 
@@ -294,19 +317,13 @@ export default function ProductsPage() {
             return;
         }
 
-        // Si hay un archivo, establecer la URL de previsualización
+        // Agregamos verificación de si hay archivos en la lista
         if (newFileList.length > 0) {
             const lastFile = newFileList[newFileList.length - 1];
-            if (lastFile.originFileObj) {
-                // Crear objeto URL para previsualización
-                const objectUrl = URL.createObjectURL(lastFile.originFileObj);
-                setImageUrl(objectUrl);
-
-                // Limpiar la URL cuando se desmonte el componente
-                return () => URL.revokeObjectURL(objectUrl);
+            // Verificamos que lastFile existe antes de acceder a sus propiedades
+            if (lastFile && lastFile.originFileObj) {
+                setImageUrl(URL.createObjectURL(lastFile.originFileObj));
             }
-        } else {
-            setImageUrl(null);
         }
     };
 
@@ -383,14 +400,6 @@ export default function ProductsPage() {
 
                     const arsPrice = calculateArsPrice(usdPrice, dolarBlue?.venta);
                     setCalculatedArsPrice(arsPrice);
-
-                    console.log('Precios iniciales calculados:', {
-                        costo: numericPrice,
-                        categoria: categoryName,
-                        margen: categoryMargin,
-                        precioUSD: usdPrice,
-                        precioARS: arsPrice
-                    });
                 }
             }
         }, 100); // Un pequeño retraso para asegurar que el modal está abierto
@@ -448,7 +457,18 @@ export default function ProductsPage() {
                 : '/api/products';
 
             // Preparar datos para enviar
-            const productData: any = {
+            type ProductFormData = {
+                name: string;
+                price: number;
+                stock: number;
+                category_id?: number | null;
+                imageUrl?: string;
+                id?: number;
+                clearImage?: boolean;
+                [key: string]: string | number | boolean | null | undefined; // Tipo más específico para campos dinámicos
+            };
+
+            const productData: ProductFormData = {
                 ...values,
                 id: isEditing && currentProduct ? currentProduct.id : undefined,
                 clearImage: shouldClearImage
@@ -456,7 +476,48 @@ export default function ProductsPage() {
 
             // Si se ingresó una URL de imagen directamente
             if (values.imageUrl && values.imageUrl.trim() !== '') {
-                productData.imageUrl = values.imageUrl;
+                // Usar la URL directamente
+                productData.imageUrl = values.imageUrl.trim();
+            } 
+            // Si hay un archivo subido, preparar para subir la imagen
+            else if (fileList.length > 0 && fileList[0]?.originFileObj) {
+                // Crear un formData para subir la imagen
+                const formData = new FormData();
+                formData.append('file', fileList[0].originFileObj);
+                
+                // Verificar si el ID existe, de lo contrario usar un placeholder
+                const productId = productData.id !== undefined ? productData.id.toString() : 'new';
+                formData.append('productId', productId);
+
+                // Enviar a la API de imágenes
+                setUploading(true);
+                const imageResponse = await fetch('/api/images', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (imageResponse.ok) {
+                    const imageData = await imageResponse.json();
+                    // Actualizar la imagen en el producto
+                    productData.imageUrl = imageData.url;
+
+                    // También actualizar el producto en la base de datos con la nueva URL de imagen
+                    await fetch(`/api/products/${productData.id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            id: productData.id,
+                            image: imageData.url
+                        }),
+                    });
+                } else {
+                    const errorData = await imageResponse.json();
+                    message.error(`Error al subir la imagen: ${errorData.error}`);
+                }
+
+                setUploading(false);
             }
 
             // Primero crear o actualizar el producto
@@ -475,45 +536,6 @@ export default function ProductsPage() {
 
             const savedProduct = await response.json();
 
-            // Si hay un archivo para subir, subirlo a través de la API
-            if (fileList.length > 0 && fileList[0].originFileObj) {
-                setUploading(true);
-
-                // Crear FormData
-                const formData = new FormData();
-                formData.append('file', fileList[0].originFileObj);
-                formData.append('productId', savedProduct.id.toString());
-
-                // Enviar a la API de imágenes
-                const imageResponse = await fetch('/api/images', {
-                    method: 'POST',
-                    body: formData,
-                });
-
-                if (imageResponse.ok) {
-                    const imageData = await imageResponse.json();
-                    // Actualizar la imagen en el producto
-                    savedProduct.image = imageData.url;
-
-                    // También actualizar el producto en la base de datos con la nueva URL de imagen
-                    await fetch(`/api/products/${savedProduct.id}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            id: savedProduct.id,
-                            image: imageData.url
-                        }),
-                    });
-                } else {
-                    const errorData = await imageResponse.json();
-                    message.error(`Error al subir la imagen: ${errorData.error}`);
-                }
-
-                setUploading(false);
-            }
-
             message.success(`Producto ${isEditing ? 'actualizado' : 'creado'} correctamente`);
             setIsModalOpen(false);
 
@@ -531,7 +553,8 @@ export default function ProductsPage() {
             setShouldClearImage(false);
 
         } catch (error) {
-            message.error(`Error: ${error instanceof Error ? error.message : "Error desconocido"}`);
+            const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+            message.error(errorMessage);
         } finally {
             setIsSubmitting(false);
         }
@@ -540,7 +563,6 @@ export default function ProductsPage() {
     // Función para calcular y actualizar los precios de venta
     const updateCalculatedPrices = () => {
         const costPrice = form.getFieldValue('price');
-        console.log('Calculando precios con costo:', costPrice, 'margen:', selectedCategoryMargin);
 
         if (costPrice) {
             // Convertir a número si es string
@@ -557,8 +579,6 @@ export default function ProductsPage() {
 
             const arsPrice = calculateArsPrice(usdPrice, dolarBlue?.venta);
             setCalculatedArsPrice(arsPrice);
-
-            console.log('Precios calculados - USD:', usdPrice, 'ARS:', arsPrice);
         } else {
             setCalculatedUsdPrice(null);
             setCalculatedArsPrice(null);
@@ -579,17 +599,27 @@ export default function ProductsPage() {
 
             setProducts(prevProducts => prevProducts.filter(p => p.id !== id));
             message.success("Producto eliminado correctamente");
-        } catch (error: any) {
-            message.error(error.message || "Error al eliminar el producto");
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : "Error al eliminar el producto";
+            message.error(errorMessage);
         }
     };
 
     // Función para normalizar URL de imagen
-    const normFile = (e: any) => {
+    type NormFileEvent = UploadFile[] | {
+        fileList: UploadFile[];
+    };
+
+    const normFile = (e: NormFileEvent): UploadFile[] => {
         if (Array.isArray(e)) {
             return e;
         }
-        return e?.fileList;
+        
+        if ('fileList' in e) {
+            return e.fileList;
+        }
+        
+        return [];
     };
 
     // Configuración para el componente Upload
@@ -1192,7 +1222,7 @@ export default function ProductsPage() {
                                         }
                                     }}
                                     filterOption={(inputValue, option) =>
-                                        option!.value.toLowerCase().indexOf(inputValue.toLowerCase()) !== -1
+                                        option ? option.value.toLowerCase().indexOf(inputValue.toLowerCase()) !== -1 : false
                                     }
                                 />
                                 <Form.Item name="category_id" hidden>
@@ -1325,12 +1355,12 @@ export default function ProductsPage() {
                         options={categories.map(c => ({ value: c.name, id: c.id }))}
                         placeholder="Seleccione o busque una categoría"
                         onChange={(value) => setBulkCategoryName(value)}
-                        onSelect={(value, option: any) => {
+                        onSelect={(value, option: { id: number; value: string }) => {
                             setBulkCategoryId(option.id);
                             setBulkCategoryName(value);
                         }}
                         filterOption={(inputValue, option) =>
-                            option!.value.toLowerCase().indexOf(inputValue.toLowerCase()) !== -1
+                            option ? option.value.toLowerCase().indexOf(inputValue.toLowerCase()) !== -1 : false
                         }
                     />
                 </div>

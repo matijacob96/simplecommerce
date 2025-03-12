@@ -25,6 +25,7 @@ export default function SettingsPage() {
     useEffect(() => {
         const fetchSettings = async () => {
             try {
+                setLoading(true);
                 const response = await fetch("/api/settings");
                 if (response.ok) {
                     const data = await response.json();
@@ -33,9 +34,12 @@ export default function SettingsPage() {
                         ? parseFloat(profitMargin) 
                         : Number(profitMargin);
                     
-                    setDefaultProfitMargin(isNaN(numericMargin) ? 0.2 : numericMargin);
+                    const marginValue = isNaN(numericMargin) ? 0.2 : numericMargin;
+                    setDefaultProfitMargin(marginValue);
+                    
+                    // Actualizamos el formulario solo si ya no estamos cargando
                     form.setFieldsValue({ 
-                        default_profit_margin: isNaN(numericMargin) ? 0.2 : numericMargin 
+                        default_profit_margin: marginValue 
                     });
                 }
             } catch (error) {
@@ -47,7 +51,7 @@ export default function SettingsPage() {
         };
 
         fetchSettings();
-    }, [form]);
+    }, [form]); // Añadimos form a las dependencias
 
     const handleSubmit = async (values: { default_profit_margin: number }) => {
         try {
@@ -76,71 +80,73 @@ export default function SettingsPage() {
     return (
         <div style={{ padding: 16 }}>
             <Card title={<Title style={{ margin: 0 }} level={3}>Configuración</Title>}>
-                {loading ? (
-                    <div style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        padding: 24,
-                        width: '100%'
-                    }}>
-                        <Spin size="large" />
-                    </div>
-                ) : (
-                    <Form 
-                        form={form} 
-                        layout="vertical" 
-                        initialValues={{ default_profit_margin: defaultProfitMargin }}
-                        onFinish={handleSubmit}
-                    >
-                        <Form.Item
-                            name="default_profit_margin"
-                            label={<Text strong>Margen de beneficio predeterminado</Text>}
-                            tooltip="El margen de beneficio predeterminado se utilizará para categorías que no tengan un margen específico establecido."
-                            rules={[{ required: true, message: 'Por favor ingresa el margen de beneficio predeterminado' }]}
-                        >
-                            <Space style={{ width: '100%' }} direction="vertical">
-                                <Slider
-                                    min={0}
-                                    max={1}
-                                    step={0.01}
-                                    value={typeof defaultProfitMargin === 'number' ? defaultProfitMargin : 0}
-                                    onChange={(value) => {
-                                        setDefaultProfitMargin(value);
-                                        form.setFieldsValue({ default_profit_margin: value });
-                                    }}
-                                    tooltip={{ formatter: formatPercentage }}
-                                />
-                                <InputNumber
-                                    style={{ width: 200 }}
-                                    min={0}
-                                    max={1}
-                                    step={0.01}
-                                    value={defaultProfitMargin}
-                                    formatter={(value) => `${(Number(value) * 100).toFixed(0)}`}
-                                    parser={(value) => (value ? parseFloat(value.replace('%', '')) / 100 : 0)}
-                                    onChange={(value) => {
-                                        setDefaultProfitMargin(value || 0);
-                                        form.setFieldsValue({ default_profit_margin: value });
-                                    }}
-                                    prefix={<PercentageOutlined />}
-                                />
-                            </Space>
-                        </Form.Item>
-
-                        <Divider />
-
-                        <Form.Item>
-                            <Button 
-                                type="primary" 
-                                htmlType="submit" 
-                                icon={<SaveOutlined />}
+                <Form 
+                    form={form} 
+                    layout="vertical" 
+                    initialValues={{ default_profit_margin: defaultProfitMargin }}
+                    onFinish={handleSubmit}
+                >
+                    {loading ? (
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            padding: 24,
+                            width: '100%'
+                        }}>
+                            <Spin size="large" />
+                        </div>
+                    ) : (
+                        <>
+                            <Form.Item
+                                name="default_profit_margin"
+                                label={<Text strong>Margen de beneficio predeterminado</Text>}
+                                tooltip="El margen de beneficio predeterminado se utilizará para categorías que no tengan un margen específico establecido."
+                                rules={[{ required: true, message: 'Por favor ingresa el margen de beneficio predeterminado' }]}
                             >
-                                Guardar Configuración
-                            </Button>
-                        </Form.Item>
-                    </Form>
-                )}
+                                <Space style={{ width: '100%' }} direction="vertical">
+                                    <Slider
+                                        min={0}
+                                        max={1}
+                                        step={0.01}
+                                        value={typeof defaultProfitMargin === 'number' ? defaultProfitMargin : 0}
+                                        onChange={(value) => {
+                                            setDefaultProfitMargin(value);
+                                            form.setFieldsValue({ default_profit_margin: value });
+                                        }}
+                                        tooltip={{ formatter: formatPercentage }}
+                                    />
+                                    <InputNumber
+                                        style={{ width: 200 }}
+                                        min={0}
+                                        max={1}
+                                        step={0.01}
+                                        value={defaultProfitMargin}
+                                        formatter={(value) => `${(Number(value) * 100).toFixed(0)}`}
+                                        parser={(value) => (value ? parseFloat(value.replace('%', '')) / 100 : 0)}
+                                        onChange={(value) => {
+                                            setDefaultProfitMargin(value || 0);
+                                            form.setFieldsValue({ default_profit_margin: value });
+                                        }}
+                                        prefix={<PercentageOutlined />}
+                                    />
+                                </Space>
+                            </Form.Item>
+
+                            <Divider />
+
+                            <Form.Item>
+                                <Button 
+                                    type="primary" 
+                                    htmlType="submit" 
+                                    icon={<SaveOutlined />}
+                                >
+                                    Guardar Configuración
+                                </Button>
+                            </Form.Item>
+                        </>
+                    )}
+                </Form>
             </Card>
         </div>
     );

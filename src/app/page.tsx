@@ -1,56 +1,34 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from "react";
-import { Input, Select, Card, Spin, Empty, Space, Typography, Row, Col, Image, Divider, Switch, Button, Tooltip, Skeleton, Drawer } from "antd";
-import { SearchOutlined, FilterOutlined, InboxOutlined, DollarOutlined } from "@ant-design/icons";
-import { useRouter, useSearchParams } from "next/navigation";
-import { calculateUsdPrice, calculateArsPrice, formatUsdPrice, formatArsPrice } from "@/utils/priceUtils";
-import { useAppState } from "@/lib/AppStateContext";
+import { useState, Suspense } from 'react';
+import {
+  Input,
+  Select,
+  Card,
+  Spin,
+  Empty,
+  Space,
+  Typography,
+  Row,
+  Col,
+  Image,
+  Divider,
+  Switch,
+  Button,
+  Tooltip,
+  Skeleton,
+  Drawer
+} from 'antd';
+import {
+  SearchOutlined,
+  FilterOutlined,
+  InboxOutlined,
+  DollarOutlined
+} from '@ant-design/icons';
+import { useAppState } from '@/lib/AppStateContext';
 
 const { Option } = Select;
 const { Text, Title } = Typography;
-
-type Category = {
-  id: number;
-  name: string;
-  profit_margin?: number | null;
-};
-
-type Product = {
-  id: number;
-  name: string;
-  price: number;
-  stock: number;
-  image?: string;
-  category_id?: number;
-  category?: Category;
-  flavor?: string;
-};
-
-// Agregar interfaz para dólar blue
-interface DolarBlue {
-  compra: number;
-  venta: number;
-  fromCache?: boolean;
-  timestamp: number;
-}
-
-// Función de debounce para retrasar la ejecución
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-}
 
 // Estilos CSS para la scrollbar invisible
 const scrollbarStyles = `
@@ -81,17 +59,7 @@ const scrollbarStyles = `
 
 // Componente interno que usa useSearchParams
 function CatalogContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  // Obtener parámetros de la URL
-  const categoryParam = searchParams.get("category") || "all";
-  const searchParam = searchParams.get("search") || "";
-  const availableParam = searchParams.get("available");
-
-  // Acceder al estado global
   const {
-    products,
     filteredProducts,
     categories,
     loading,
@@ -106,7 +74,8 @@ function CatalogContent() {
     handleSearchClear,
     handleCategoryChange,
     handleAvailabilityChange,
-    getPrices
+    getPrices,
+    refreshData
   } = useAppState();
 
   // Estado local solo para el drawer de filtros
@@ -114,12 +83,16 @@ function CatalogContent() {
 
   // Lista de categorías para el selector
   const categoryItems = [
-    { label: "Todos", value: "all" },
-    ...categories.map(category => ({
+    { label: 'Todos', value: 'all' },
+    ...categories.map((category) => ({
       label: category.name,
       value: category.id.toString()
     }))
   ];
+
+  function handleRefreshData() {
+    refreshData();
+  }
 
   return (
     <>
@@ -127,20 +100,26 @@ function CatalogContent() {
       <style>{scrollbarStyles}</style>
 
       {/* Contenedor principal - Sin scroll, full height */}
-      <div style={{
-        height: 'calc(100vh - 64px)',
-        padding: 16,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        boxSizing: 'border-box'
-      }}>
+      <div
+        style={{
+          height: 'calc(100vh - 64px)',
+          padding: 16,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          boxSizing: 'border-box'
+        }}
+      >
         {/* Cards superiores con altura fija */}
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           {/* Card de búsqueda */}
           <Col xs={24} md={16} style={{ height: 'auto' }}>
             <Card
-              title={<><SearchOutlined /> Búsqueda</>}
+              title={
+                <>
+                  <SearchOutlined /> Búsqueda
+                </>
+              }
               variant="outlined"
               className="search-and-filters"
               styles={{ body: { padding: '12px 24px' } }}
@@ -192,7 +171,11 @@ function CatalogContent() {
           {!isMobile && (
             <Col xs={24} md={8} style={{ height: 'auto' }}>
               <Card
-                title={<><FilterOutlined /> Filtros</>}
+                title={
+                  <>
+                    <FilterOutlined /> Filtros
+                  </>
+                }
                 variant="outlined"
                 className="filters-card"
                 styles={{ body: { padding: '12px 24px' } }}
@@ -209,7 +192,9 @@ function CatalogContent() {
                         size="small"
                       />
                       <Text style={{ marginLeft: 8 }}>
-                        {onlyAvailable ? "Productos con stock" : "Todos los productos"}
+                        {onlyAvailable
+                          ? 'Productos con stock'
+                          : 'Todos los productos'}
                       </Text>
                     </div>
                   </div>
@@ -239,14 +224,19 @@ function CatalogContent() {
                         <DollarOutlined /> Cargando tipo de cambio...
                       </Text>
                     </div>
-                  ) : dolarBlue && (
-                    <div style={{ marginTop: 8 }}>
-                      <Tooltip title="Tipo de cambio utilizado para calcular los precios">
-                        <Text type="secondary">
-                          <DollarOutlined /> Dólar Blue: {dolarBlue ? `$${dolarBlue.venta.toLocaleString('es-AR')}` : "No disponible"}
-                        </Text>
-                      </Tooltip>
-                    </div>
+                  ) : (
+                    dolarBlue && (
+                      <div style={{ marginTop: 8 }}>
+                        <Tooltip title="Tipo de cambio utilizado para calcular los precios">
+                          <Text type="secondary">
+                            <DollarOutlined /> Dólar Blue:{' '}
+                            {dolarBlue
+                              ? `$${dolarBlue.venta.toLocaleString('es-AR')}`
+                              : 'No disponible'}
+                          </Text>
+                        </Tooltip>
+                      </div>
+                    )
                   )}
                 </Space>
               </Card>
@@ -273,7 +263,9 @@ function CatalogContent() {
                   unCheckedChildren="No"
                 />
                 <Text style={{ marginLeft: 12 }}>
-                  {onlyAvailable ? "Productos con stock" : "Todos los productos"}
+                  {onlyAvailable
+                    ? 'Productos con stock'
+                    : 'Todos los productos'}
                 </Text>
               </div>
             </div>
@@ -303,12 +295,17 @@ function CatalogContent() {
                   <DollarOutlined /> Cargando tipo de cambio...
                 </Text>
               </div>
-            ) : dolarBlue && (
-              <div style={{ marginTop: 8 }}>
-                <Text type="secondary">
-                  <DollarOutlined /> Dólar Blue: {dolarBlue ? `$${dolarBlue.venta.toLocaleString('es-AR')}` : "No disponible"}
-                </Text>
-              </div>
+            ) : (
+              dolarBlue && (
+                <div style={{ marginTop: 8 }}>
+                  <Text type="secondary">
+                    <DollarOutlined /> Dólar Blue:{' '}
+                    {dolarBlue
+                      ? `$${dolarBlue.venta.toLocaleString('es-AR')}`
+                      : 'No disponible'}
+                  </Text>
+                </div>
+              )
             )}
           </Space>
         </Drawer>
@@ -324,11 +321,12 @@ function CatalogContent() {
               flexDirection: 'column'
             }}
             styles={{
-              header: { 
-                position: 'sticky', 
-                top: 0, 
-                zIndex: 1, 
-                backgroundColor: '#fff' }, 
+              header: {
+                position: 'sticky',
+                top: 0,
+                zIndex: 1,
+                backgroundColor: '#fff'
+              },
               body: {
                 padding: 0,
                 overflow: 'hidden',
@@ -345,28 +343,29 @@ function CatalogContent() {
               }}
             >
               {loading ? (
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  padding: 64,
-                  width: '100%',
-                  height: '100%'
-                }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    padding: 64,
+                    width: '100%',
+                    height: '100%'
+                  }}
+                >
                   <Spin size="large" />
                 </div>
               ) : (
                 <div>
                   {filteredProducts.length === 0 ? (
-                    <Empty 
-                      description="No se encontraron productos." 
+                    <Empty
+                      description="No se encontraron productos."
                       image={Empty.PRESENTED_IMAGE_SIMPLE}
                     >
-                      <Button 
-                        type="primary" 
+                      <Button
+                        type="primary"
                         onClick={() => {
-                          const { refreshData } = useAppState();
-                          refreshData();
+                          handleRefreshData();
                         }}
                       >
                         Reintentar
@@ -376,54 +375,89 @@ function CatalogContent() {
                     <Row gutter={[16, 16]}>
                       {filteredProducts.map((product) => {
                         const prices = getPrices(product);
-                        
+
                         return (
                           <Col xs={24} md={12} key={product.id}>
-                            <Card variant="outlined" style={{ width: '100%', height: '100%' }}>
+                            <Card
+                              variant="outlined"
+                              style={{ width: '100%', height: '100%' }}
+                            >
                               {/* Mobile Layout */}
                               {isMobile && (
                                 <>
                                   {/* Imagen centrada */}
-                                  <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '16px' }}>
+                                  <div
+                                    style={{
+                                      display: 'flex',
+                                      justifyContent: 'center',
+                                      width: '100%',
+                                      marginBottom: '16px'
+                                    }}
+                                  >
                                     {product.image ? (
                                       <Image
                                         src={product.image}
                                         alt={product.name}
-                                        style={{ 
+                                        style={{
                                           width: '200px',
                                           height: '200px',
                                           objectFit: 'cover',
                                           borderRadius: '4px'
                                         }}
                                         preview={false}
-                                        placeholder={<Skeleton.Image active style={{ width: '200px', height: '200px' }} />}
+                                        placeholder={
+                                          <Skeleton.Image
+                                            active
+                                            style={{
+                                              width: '200px',
+                                              height: '200px'
+                                            }}
+                                          />
+                                        }
                                         fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNmNWY1ZjUiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjZDlkOWQ5Ij5JbWFnZW4gbm8gZGlzcG9uaWJsZTwvdGV4dD48L3N2Zz4="
-                                        onError={(e) => {
-                                          console.log("Error al cargar imagen:", product.id);
+                                        onError={(error) => {
+                                          console.error(
+                                            'Error al cargar imagen de: ',
+                                            product.id,
+                                            '. Error: ',
+                                            error
+                                          );
                                         }}
                                       />
                                     ) : (
-                                      <div style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        background: '#f5f5f5',
-                                        width: '200px',
-                                        height: '200px',
-                                        borderRadius: '4px'
-                                      }}>
-                                        <InboxOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />
+                                      <div
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          background: '#f5f5f5',
+                                          width: '200px',
+                                          height: '200px',
+                                          borderRadius: '4px'
+                                        }}
+                                      >
+                                        <InboxOutlined
+                                          style={{
+                                            fontSize: 48,
+                                            color: '#d9d9d9'
+                                          }}
+                                        />
                                       </div>
                                     )}
                                   </div>
-                                  
+
                                   {/* Título con elipsis y tooltip */}
                                   <Tooltip title={product.name}>
-                                    <div style={{ width: '100%', marginBottom: '12px' }}>
+                                    <div
+                                      style={{
+                                        width: '100%',
+                                        marginBottom: '12px'
+                                      }}
+                                    >
                                       <Title
                                         level={4}
                                         ellipsis={{ tooltip: true }}
-                                        style={{ 
+                                        style={{
                                           margin: 0,
                                           width: '100%',
                                           whiteSpace: 'nowrap',
@@ -435,36 +469,54 @@ function CatalogContent() {
                                       </Title>
                                     </div>
                                   </Tooltip>
-                                  
+
                                   {/* Precios en una fila */}
-                                  <Row align="middle" justify="space-between" style={{ marginBottom: '12px' }}>
+                                  <Row
+                                    align="middle"
+                                    justify="space-between"
+                                    style={{ marginBottom: '12px' }}
+                                  >
                                     <Col>
-                                      <Text style={{ fontSize: 14, color: '#8c8c8c' }}>
+                                      <Text
+                                        style={{
+                                          fontSize: 14,
+                                          color: '#8c8c8c'
+                                        }}
+                                      >
                                         {prices.formattedUsd}
                                       </Text>
                                     </Col>
                                     <Col>
-                                      <Title level={3} style={{ margin: 0, color: '#52c41a' }}>
+                                      <Title
+                                        level={3}
+                                        style={{ margin: 0, color: '#52c41a' }}
+                                      >
                                         {prices.formattedArs}
                                       </Title>
                                     </Col>
                                   </Row>
-                                  
+
                                   <Divider style={{ margin: '0 0 12px 0' }} />
-                                  
+
                                   {/* Stock debajo del precio */}
                                   <Text
                                     style={{
-                                      color: product.stock <= 5 && product.stock > 0 ? '#ff4d4f' : undefined,
+                                      color:
+                                        product.stock <= 5 && product.stock > 0
+                                          ? '#ff4d4f'
+                                          : undefined,
                                       display: 'block',
                                       textAlign: 'right'
                                     }}
                                   >
-                                    Stock: {product.stock} {product.stock <= 5 && product.stock > 0 ? '(¡Últimas unidades!)' : ''}
+                                    Stock: {product.stock}{' '}
+                                    {product.stock <= 5 && product.stock > 0
+                                      ? '(¡Últimas unidades!)'
+                                      : ''}
                                   </Text>
                                 </>
                               )}
-                              
+
                               {/* Desktop Layout */}
                               {!isMobile && (
                                 <Row wrap={false} align="middle">
@@ -474,7 +526,7 @@ function CatalogContent() {
                                       <Image
                                         src={product.image}
                                         alt={product.name}
-                                        style={{ 
+                                        style={{
                                           width: '120px',
                                           height: '120px',
                                           objectFit: 'cover',
@@ -482,30 +534,50 @@ function CatalogContent() {
                                           display: 'block'
                                         }}
                                         preview={false}
-                                        placeholder={<Skeleton.Image active style={{ width: '120px', height: '120px' }} />}
+                                        placeholder={
+                                          <Skeleton.Image
+                                            active
+                                            style={{
+                                              width: '120px',
+                                              height: '120px'
+                                            }}
+                                          />
+                                        }
                                         fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNmNWY1ZjUiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjZDlkOWQ5Ij5JbWFnZW4gbm8gZGlzcG9uaWJsZTwvdGV4dD48L3N2Zz4="
-                                        onError={(e) => {
-                                          console.log("Error al cargar imagen:", product.id);
+                                        onError={(error) => {
+                                          console.error(
+                                            'Error al cargar imagen de: ',
+                                            product.id,
+                                            '. Error: ',
+                                            error
+                                          );
                                         }}
                                       />
                                     ) : (
-                                      <div style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        background: '#f5f5f5',
-                                        width: '120px',
-                                        height: '120px',
-                                        borderRadius: '4px'
-                                      }}>
-                                        <InboxOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />
+                                      <div
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          background: '#f5f5f5',
+                                          width: '120px',
+                                          height: '120px',
+                                          borderRadius: '4px'
+                                        }}
+                                      >
+                                        <InboxOutlined
+                                          style={{
+                                            fontSize: 48,
+                                            color: '#d9d9d9'
+                                          }}
+                                        />
                                       </div>
                                     )}
                                   </Col>
-                                  
+
                                   {/* Espacio de 24px entre imagen y contenido */}
                                   <Col flex="24px"></Col>
-                                  
+
                                   {/* Contenido que crece */}
                                   <Col flex="auto">
                                     <Row>
@@ -514,7 +586,7 @@ function CatalogContent() {
                                           <Title
                                             level={4}
                                             ellipsis={{ tooltip: true }}
-                                            style={{ 
+                                            style={{
                                               margin: 0,
                                               width: '100%'
                                             }}
@@ -528,10 +600,22 @@ function CatalogContent() {
                                           <Spin size="small" />
                                         ) : (
                                           <div style={{ textAlign: 'right' }}>
-                                            <Text style={{ fontSize: 14, color: '#8c8c8c', display: 'block' }}>
+                                            <Text
+                                              style={{
+                                                fontSize: 14,
+                                                color: '#8c8c8c',
+                                                display: 'block'
+                                              }}
+                                            >
                                               {prices.formattedUsd}
                                             </Text>
-                                            <Title level={3} style={{ margin: 0, color: '#52c41a' }}>
+                                            <Title
+                                              level={3}
+                                              style={{
+                                                margin: 0,
+                                                color: '#52c41a'
+                                              }}
+                                            >
                                               {prices.formattedArs}
                                             </Title>
                                           </div>
@@ -542,13 +626,24 @@ function CatalogContent() {
                                     <Divider style={{ margin: '12px 0' }} />
 
                                     <Row>
-                                      <Col span={24} style={{ textAlign: 'right' }}>
+                                      <Col
+                                        span={24}
+                                        style={{ textAlign: 'right' }}
+                                      >
                                         <Text
                                           style={{
-                                            color: product.stock <= 5 && product.stock > 0 ? '#ff4d4f' : undefined
+                                            color:
+                                              product.stock <= 5 &&
+                                              product.stock > 0
+                                                ? '#ff4d4f'
+                                                : undefined
                                           }}
                                         >
-                                          Stock: {product.stock} {product.stock <= 5 && product.stock > 0 ? '(¡Últimas unidades!)' : ''}
+                                          Stock: {product.stock}{' '}
+                                          {product.stock <= 5 &&
+                                          product.stock > 0
+                                            ? '(¡Últimas unidades!)'
+                                            : ''}
                                         </Text>
                                       </Col>
                                     </Row>
@@ -574,18 +669,22 @@ function CatalogContent() {
 // Componente principal con Suspense boundary
 export default function Catalog() {
   return (
-    <Suspense fallback={
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 64,
-        width: '100%',
-        height: 'calc(100vh - 64px)'
-      }}>
-        <Spin size="large" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 64,
+            width: '100%',
+            height: 'calc(100vh - 64px)'
+          }}
+        >
+          <Spin size="large" />
+        </div>
+      }
+    >
       <CatalogContent />
     </Suspense>
   );

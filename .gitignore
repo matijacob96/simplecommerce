@@ -39,3 +39,32 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Editor specific files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+.cursor.json
+
+# Local history files
+.history/
+.ionide/
+
+# Logs and temporary files
+logs/
+*.log
+*.tmp
+*.temp
+
+# Bun
+.bun/
+bun.lockb
+
+# Cache directories
+.cache/
+.eslintcache
+.stylelintcache
+.npm

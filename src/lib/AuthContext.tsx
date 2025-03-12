@@ -1,7 +1,17 @@
-"use client";
+'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, UserRole, getCurrentUser, signIn, signOut, getStoredUser, isTokenExpiringSoon, refreshToken } from './auth';
+import {
+  User,
+  UserRole,
+  getCurrentUser,
+  signIn,
+  signOut,
+  getStoredUser,
+  isTokenExpiringSoon,
+  refreshToken,
+  getStoredToken
+} from './auth';
 import supabase from './supabase';
 
 interface AuthContextType {
@@ -9,6 +19,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   userRole: UserRole;
+  authError: Error | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   hasPermission: (requiredRoles: UserRole[]) => boolean;
@@ -31,9 +42,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAuthError(null);
       const currentUser = await getCurrentUser();
       setUser(currentUser);
-    } catch (error: any) {
-      console.error("Error al cargar usuario:", error);
-      setAuthError(error);
+    } catch (error: unknown) {
+      console.error('Error al cargar usuario:', error);
+      setAuthError(error instanceof Error ? error : new Error(String(error)));
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -53,16 +64,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Inicializar el proceso de carga/refresco
       const init = async () => {
-        // Primero verificar si hay un token por expirar y refrescarlo si es necesario
-        if (isTokenExpiringSoon()) {
-          console.log("Token por expirar, refrescando...");
+        // Solo intentar refrescar el token si hay un usuario almacenado
+        // para evitar errores innecesarios para usuarios anónimos
+        const existingUser = getStoredUser();
+        const existingToken = getStoredToken();
+
+        if (existingUser && existingToken && isTokenExpiringSoon()) {
           await refreshToken();
         }
-        
-        // Cargar el usuario desde el servidor
-        await loadUser();
+
+        // Cargar el usuario desde el servidor (solo si tenemos token)
+        if (existingToken) {
+          await loadUser();
+        } else {
+          setIsLoading(false); // No hay token, no necesitamos cargar nada
+        }
       };
-      
+
       init();
     }
   }, [initialized]);
@@ -72,43 +90,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!initialized) return;
 
     // Suscribirse a cambios de autenticación
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Evento de autenticación:", event);
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        await loadUser();
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event) => {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          await loadUser();
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+        }
       }
-    });
+    );
 
     // Manejar cambios de visibilidad para recargar el usuario cuando la pestaña vuelve a ser visible
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        console.log("Pestaña activa nuevamente, verificando autenticación...");
-        
-        // Si el token está por expirar, refrescarlo primero
-        if (isTokenExpiringSoon()) {
-          refreshToken().then(success => {
-            if (success) {
-              console.log("Token refrescado correctamente");
-            } else {
-              console.log("Error al refrescar token, cargando usuario de todas formas");
-            }
+        // Verificar si tenemos usuario y token antes de intentar refrescar
+        const storedUser = getStoredUser();
+        const storedToken = getStoredToken();
+
+        // Solo intentar refrescar si hay un usuario autenticado
+        if (storedUser && storedToken) {
+          // Si el token está por expirar, refrescarlo primero
+          if (isTokenExpiringSoon()) {
+            refreshToken().then((success) => {
+              if (success) {
+                loadUser();
+              } else {
+                // Si falla el refresco pero aún tenemos token, intentar cargar usuario
+                if (getStoredToken()) {
+                  loadUser();
+                } else {
+                  setUser(null);
+                  setIsLoading(false);
+                }
+              }
+            });
+          } else {
             loadUser();
-          });
+          }
         } else {
-          loadUser();
+          // Si no hay usuario almacenado, solo establecer isLoading en false
+          setIsLoading(false);
         }
       }
     };
-    
+
     // Agregar listener para cambios de visibilidad
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Configurar un intervalo para refrescar el token automáticamente
+    // Configurar un intervalo para refrescar el token automáticamente (solo si hay usuario)
     const tokenRefreshInterval = setInterval(() => {
-      if (isTokenExpiringSoon()) {
-        console.log("Refrescando token automáticamente...");
+      const storedUser = getStoredUser();
+      const storedToken = getStoredToken();
+
+      // Solo intentar refrescar si hay un usuario autenticado
+      if (storedUser && storedToken && isTokenExpiringSoon()) {
         refreshToken();
       }
     }, 5 * 60 * 1000); // Verificar cada 5 minutos
@@ -132,13 +167,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true);
       setAuthError(null);
-      
+
       await signIn(email, password);
-      
+
       // Cargar usuario inmediatamente después de iniciar sesión
       await loadUser();
-    } catch (error: any) {
-      setAuthError(error);
+    } catch (error: unknown) {
+      setAuthError(error instanceof Error ? error : new Error(String(error)));
       throw error;
     } finally {
       setIsLoading(false);
@@ -150,8 +185,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true);
       await signOut();
       setUser(null);
-    } catch (error: any) {
-      setAuthError(error);
+    } catch (error: unknown) {
+      setAuthError(error instanceof Error ? error : new Error(String(error)));
       throw error;
     } finally {
       setIsLoading(false);
@@ -161,10 +196,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Función para verificar si el usuario tiene los permisos requeridos
   const hasPermission = (requiredRoles: UserRole[]) => {
     if (!user) return false;
-    
+
     // Administrador tiene acceso a todo
     if (user.role === 'admin') return true;
-    
+
     // Si no es admin, verificar si su rol está en la lista de roles permitidos
     return requiredRoles.includes(user.role);
   };
@@ -174,17 +209,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading: isLoading || !initialized, // Considerar "loading" hasta que se inicialice
     isAuthenticated: !!user,
     userRole: user?.role || 'anonimo',
+    authError,
     login,
     logout,
     hasPermission,
     refreshUser
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
@@ -193,4 +225,4 @@ export function useAuth() {
     throw new Error('useAuth debe ser usado dentro de un AuthProvider');
   }
   return context;
-} 
+}
