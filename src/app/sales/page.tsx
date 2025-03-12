@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Button,
   Table,
@@ -66,11 +66,8 @@ export default function SalesPage() {
     sortOrder: null,
   });
 
-  useEffect(() => {
-    fetchSales();
-  }, []);
-
-  const fetchSales = async () => {
+  // Usar useCallback para la función fetchSales
+  const fetchSaleData = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch('/api/sales');
@@ -79,13 +76,17 @@ export default function SalesPage() {
       }
       const data = await response.json();
       setSales(data);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error:', error);
       message.error('Error al cargar las ventas');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []); // No hay dependencias porque solo usa funciones de estado
+
+  useEffect(() => {
+    fetchSaleData();
+  }, [fetchSaleData]);
 
   const handleDelete = async (id: number) => {
     try {
@@ -99,10 +100,10 @@ export default function SalesPage() {
       }
 
       message.success('Venta eliminada correctamente');
-      fetchSales(); // Recargar la lista de ventas
-    } catch (error: any) {
+      fetchSaleData(); // Recargar la lista de ventas
+    } catch (error) {
       console.error('Error:', error);
-      message.error(error.message || 'Error al eliminar la venta');
+      message.error(error instanceof Error ? error.message : 'Error al eliminar la venta');
     }
   };
 

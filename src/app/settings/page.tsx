@@ -63,8 +63,8 @@ export default function SettingsPage() {
                 const error = await response.json();
                 throw new Error(error.error || "Error desconocido");
             }
-        } catch (error: any) {
-            toaster.error("Error al guardar: " + error.message);
+        } catch (error) {
+            toaster.error("Error al guardar: " + (error instanceof Error ? error.message : 'Error desconocido'));
         }
     };
 

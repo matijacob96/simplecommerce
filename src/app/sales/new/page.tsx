@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Prisma } from '@prisma/client';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     Card,
     Button,
@@ -18,7 +17,6 @@ import {
     Col,
     Radio,
     Input,
-    Form,
     AutoComplete
 } from 'antd';
 import { ShoppingCartOutlined, DeleteOutlined, ArrowLeftOutlined, PlusOutlined, WhatsAppOutlined, InstagramOutlined, FacebookOutlined } from '@ant-design/icons';
@@ -67,13 +65,8 @@ export default function NewSalePage() {
     const [newCustomerData, setNewCustomerData] = useState<NewCustomerData | null>(null);
     const router = useRouter();
 
-    useEffect(() => {
-        fetchProducts();
-        fetchCustomers();
-        fetchExchangeRate();
-    }, []);
-
-    const fetchProducts = async () => {
+    // Convertir las funciones fetch a useCallback
+    const fetchProducts = useCallback(async () => {
         setIsLoading(true);
         try {
             const response = await fetch('/api/products');
@@ -88,9 +81,9 @@ export default function NewSalePage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
-    const fetchCustomers = async () => {
+    const fetchCustomers = useCallback(async () => {
         try {
             const response = await fetch('/api/customers');
             if (!response.ok) {
@@ -102,9 +95,9 @@ export default function NewSalePage() {
             console.error('Error:', error);
             message.error('Error al cargar los clientes');
         }
-    };
+    }, []);
 
-    const fetchExchangeRate = async () => {
+    const fetchExchangeRate = useCallback(async () => {
         try {
             const response = await fetch('/api/dolar-blue');
             if (response.ok) {
@@ -118,7 +111,14 @@ export default function NewSalePage() {
             // Usar valor por defecto si falla
             setExchangeRate(1200);
         }
-    };
+    }, []);
+
+    // Ahora añadimos las dependencias al useEffect
+    useEffect(() => {
+        fetchProducts();
+        fetchCustomers();
+        fetchExchangeRate();
+    }, [fetchProducts, fetchCustomers, fetchExchangeRate]);
 
     const handleAddItem = () => {
         if (!selectedProduct || quantity <= 0) {
@@ -236,8 +236,26 @@ export default function NewSalePage() {
                 }
             }
 
+            // Definimos una interfaz para el tipo de datos de venta
+            interface SaleData {
+                items: {
+                    product_id: number;
+                    quantity: number;
+                    selling_price: number;
+                }[];
+                payment_method: string;
+                exchange_rate: number | null;
+                customer_id?: number;
+                customer_data?: {
+                    name: string;
+                    whatsapp: string | null;
+                    instagram: string | null;
+                    facebook: string | null;
+                };
+            }
+
             // Preparar datos de la venta
-            const saleData: any = {
+            const saleData: SaleData = {
                 items: saleItems.map(item => ({
                     product_id: item.product_id,
                     quantity: item.quantity,
@@ -277,9 +295,9 @@ export default function NewSalePage() {
 
             message.success('Venta creada correctamente');
             router.push('/sales');
-        } catch (error: any) {
+        } catch (error) {
             console.error('Error:', error);
-            message.error(error.message || 'Error al crear la venta');
+            message.error(error instanceof Error ? error.message : 'Error al crear la venta');
         } finally {
             setIsSaving(false);
         }
@@ -347,7 +365,7 @@ export default function NewSalePage() {
         {
             title: 'Acciones',
             key: 'action',
-            render: (_: any, _record: any, index: number) => (
+            render: (_: unknown, _record: unknown, index: number) => (
                 <Button
                     icon={<DeleteOutlined />}
                     danger
@@ -508,7 +526,7 @@ export default function NewSalePage() {
                                 dataSource={saleItems}
                                 columns={columns}
                                 pagination={false}
-                                rowKey={record => `${record.product_id}`}
+                                rowKey={(record: NewSaleItem) => `${record.product_id}`}
                             />
                         )}
                     </Card>

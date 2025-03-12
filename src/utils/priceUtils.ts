@@ -2,7 +2,7 @@
  * Utilidades para cálculos y formato de precios en USD y ARS
  */
 import { Prisma } from '@prisma/client';
-import { Product, Category } from '../types';
+import { Product } from '../types';
 
 /**
  * Convierte un valor Prisma.Decimal, string o número a un valor numérico de JavaScript
