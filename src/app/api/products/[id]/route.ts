@@ -28,7 +28,7 @@ async function checkProductExists(id: number) {
 
 // GET para obtener un producto específico
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -68,12 +68,11 @@ export async function GET(
 
 // PUT para actualizar un producto existente
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const paramsData = await params;
-    const id = parseInt(paramsData.id);
+    const id = parseInt(params.id);
 
     if (isNaN(id)) {
       return NextResponse.json(
@@ -194,7 +193,7 @@ export async function PUT(
 
 // DELETE para eliminar un producto
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
