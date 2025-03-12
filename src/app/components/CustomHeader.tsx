@@ -24,13 +24,16 @@ const { Header } = Layout;
 
 export function CustomHeader() {
     const pathname = usePathname();
+    const [isMounted, setIsMounted] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [drawerVisible, setDrawerVisible] = useState(false);
     const [loginModalVisible, setLoginModalVisible] = useState(false);
     const { user, isAuthenticated, userRole, logout } = useAuth();
 
-    // Efecto para detectar si es mobile
+    // Asegurarse que la detección de mobile solo ocurra en el cliente
     useEffect(() => {
+        setIsMounted(true);
+        
         const checkIsMobile = () => {
             setIsMobile(window.innerWidth < 992);
         };
@@ -145,6 +148,37 @@ export function CustomHeader() {
     };
 
     const filteredMenuItems = getFilteredMenuItems();
+
+    // Esto evita problemas de hidratación renderizando 
+    // un diseño simplificado en el servidor 
+    if (!isMounted) {
+        return (
+            <Header style={{ padding: "0 16px" }}>
+                <Flex align="center" justify="space-between" style={{ height: "100%" }}>
+                    {/* Logo y Título (versión simplificada sin estado del cliente) */}
+                    <Flex align="center">
+                        <Link href="/" style={{ display: 'flex', alignItems: 'center', color: 'white', textDecoration: 'none' }}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                <img 
+                                    src="https://xqbotozdwyikueurdhof.supabase.co/storage/v1/object/public/images-bucket/assets/logo-simple-commerce.png"
+                                    alt="Simple Commerce Logo"
+                                    style={{ maxHeight: '32px' }}
+                                />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                                <Title level={5} style={{ margin: 0, color: "white", lineHeight: '1.2' }}>
+                                    Simple
+                                </Title>
+                                <Title level={5} style={{ margin: 0, color: "white", lineHeight: '1.2' }}>
+                                    Commerce
+                                </Title>
+                            </div>
+                        </Link>
+                    </Flex>
+                </Flex>
+            </Header>
+        );
+    }
 
     return (
         <>
@@ -264,7 +298,7 @@ export function CustomHeader() {
                 </Drawer>
             </Header>
             
-            {/* Modal de Login */}
+            {/* Modal de login */}
             <LoginModal open={loginModalVisible} onClose={hideLoginModal} />
         </>
     );

@@ -9,6 +9,7 @@ import { Layout, Spin } from 'antd';
 import { Content } from 'antd/es/layout/layout';
 import { AuthProvider } from '@/lib/AuthContext';
 import { RouteGuard } from './components/RouteGuard';
+import { AppStateProvider } from '@/lib/AppStateContext';
 
 export default function RootLayout({
   children,
@@ -20,18 +21,30 @@ export default function RootLayout({
       <body suppressHydrationWarning={true}>
         <AntdRegistry>
           <AuthProvider>
-            <Toaster>
-              <Layout>
-                <CustomHeader />
-                <Content>
-                  <Suspense fallback={<div style={{ padding: 20, display: 'flex', justifyContent: 'center' }}><Spin size="large" /></div>}>
-                    <RouteGuard>
-                      {children}
-                    </RouteGuard>
-                  </Suspense>
-                </Content>
-              </Layout>
-            </Toaster>
+            <AppStateProvider>
+              <Toaster>
+                <Layout>
+                  <CustomHeader />
+                  <Content>
+                    <Suspense fallback={
+                      <div style={{ 
+                        padding: 20, 
+                        height: 'calc(100vh - 64px)', 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        alignItems: 'center' 
+                      }}>
+                        <Spin size="large" tip="Cargando aplicación..." />
+                      </div>
+                    }>
+                      <RouteGuard>
+                        {children}
+                      </RouteGuard>
+                    </Suspense>
+                  </Content>
+                </Layout>
+              </Toaster>
+            </AppStateProvider>
           </AuthProvider>
         </AntdRegistry>
       </body>
