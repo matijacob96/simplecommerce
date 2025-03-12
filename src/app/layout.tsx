@@ -1,11 +1,11 @@
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 import '@ant-design/v5-patch-for-react-19';
 import { Toaster } from "./components/ui/toaster";
-import React from "react";
+import React, { Suspense } from "react";
 import './globals.css';
 import 'antd/dist/reset.css';
 import { CustomHeader } from './components/CustomHeader';
-import { Layout } from 'antd';
+import { Layout, Spin } from 'antd';
 import { Content } from 'antd/es/layout/layout';
 
 export default function RootLayout({
@@ -20,7 +20,11 @@ export default function RootLayout({
           <Toaster>
             <Layout>
               <CustomHeader />
-              <Content>{children}</Content>
+              <Content>
+                <Suspense fallback={<div style={{ padding: 20, display: 'flex', justifyContent: 'center' }}><Spin size="large" /></div>}>
+                  {children}
+                </Suspense>
+              </Content>
             </Layout>
           </Toaster>
         </AntdRegistry>
