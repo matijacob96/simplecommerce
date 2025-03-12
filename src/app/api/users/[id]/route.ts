@@ -5,7 +5,7 @@ import { UserRole } from '@/lib/auth';
 // PATCH - Actualizar rol de usuario
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { role } = await request.json();
@@ -13,8 +13,8 @@ export async function PATCH(
     if (!role) {
       return NextResponse.json({ error: 'Se requiere el rol' }, { status: 400 });
     }
-    
-    await updateUserRole(params.id, role as UserRole);
+    const paramsData = await params;
+    await updateUserRole(paramsData.id, role as UserRole);
     
     return NextResponse.json({
       success: true,
@@ -28,10 +28,11 @@ export async function PATCH(
 // DELETE - Eliminar usuario
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await deleteUser(params.id);
+    const paramsData = await params;
+    await deleteUser(paramsData.id);
     
     return NextResponse.json({
       success: true,
