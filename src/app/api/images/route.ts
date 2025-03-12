@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import supabaseAdmin from "@/lib/supabase-server"; // Cliente con service_role
+import getSupabaseAdmin from "@/lib/supabase-server"; // Cliente con service_role
 
 // Nombre del bucket de Supabase Storage
 const BUCKET_NAME = "images-bucket";
@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     let productId: string | null = null;
     let file: File | null = null;
     let imageUrl: string | null = null;
-
+    
     // Procesar FormData (para subidas de archivos)
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
@@ -31,6 +31,9 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
+      
+      // Obtener cliente supabaseAdmin solo cuando lo necesitamos
+      const supabaseAdmin = getSupabaseAdmin();
 
       // Subir el archivo a Supabase Storage usando el cliente con service_role
       const { data, error } = await supabaseAdmin.storage
@@ -93,6 +96,9 @@ export async function POST(request: Request) {
         // Determinar el tipo MIME
         const contentType = imageResponse.headers.get("content-type") || "image/jpeg";
         
+        // Obtener cliente supabaseAdmin solo cuando lo necesitamos
+        const supabaseAdmin = getSupabaseAdmin();
+        
         // Subir directamente el Blob a Supabase usando el cliente con service_role
         const { data, error } = await supabaseAdmin.storage
           .from(BUCKET_NAME)
@@ -152,6 +158,9 @@ export async function DELETE(request: Request) {
       );
     }
 
+    // Obtener cliente supabaseAdmin solo cuando lo necesitamos
+    const supabaseAdmin = getSupabaseAdmin();
+    
     // Eliminar la imagen de Supabase Storage usando el cliente con service_role
     const { data, error } = await supabaseAdmin.storage
       .from(BUCKET_NAME)

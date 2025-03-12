@@ -7,6 +7,8 @@ import 'antd/dist/reset.css';
 import { CustomHeader } from './components/CustomHeader';
 import { Layout, Spin } from 'antd';
 import { Content } from 'antd/es/layout/layout';
+import { AuthProvider } from '@/lib/AuthContext';
+import { RouteGuard } from './components/RouteGuard';
 
 export default function RootLayout({
   children,
@@ -17,16 +19,20 @@ export default function RootLayout({
     <html lang="en">
       <body suppressHydrationWarning={true}>
         <AntdRegistry>
-          <Toaster>
-            <Layout>
-              <CustomHeader />
-              <Content>
-                <Suspense fallback={<div style={{ padding: 20, display: 'flex', justifyContent: 'center' }}><Spin size="large" /></div>}>
-                  {children}
-                </Suspense>
-              </Content>
-            </Layout>
-          </Toaster>
+          <AuthProvider>
+            <Toaster>
+              <Layout>
+                <CustomHeader />
+                <Content>
+                  <Suspense fallback={<div style={{ padding: 20, display: 'flex', justifyContent: 'center' }}><Spin size="large" /></div>}>
+                    <RouteGuard>
+                      {children}
+                    </RouteGuard>
+                  </Suspense>
+                </Content>
+              </Layout>
+            </Toaster>
+          </AuthProvider>
         </AntdRegistry>
       </body>
     </html>
