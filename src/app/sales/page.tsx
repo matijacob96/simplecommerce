@@ -36,7 +36,8 @@ import { formatDate } from '../../utils/dateUtils';
 import {
   formatPriceWithExchange,
   calculateSellingPrice,
-  toNumber
+  toNumber,
+  formatDualPrice
 } from '../../utils/priceUtils';
 
 const { Title, Text } = Typography;
@@ -257,8 +258,14 @@ export default function SalesPage() {
       title: 'Total',
       dataIndex: 'total',
       key: 'total',
-      render: (total: Prisma.Decimal, record: Sale) =>
-        formatPriceWithExchange(total, record.exchange_rate),
+      render: (total: Prisma.Decimal, record: Sale) => {
+        // Usar el precio en ARS almacenado (total_ars) si está disponible
+        if (record.total_ars) {
+          return formatDualPrice(total, record.total_ars);
+        }
+        // Si no, calcularlo a partir del exchange_rate de la venta
+        return formatPriceWithExchange(total, record.exchange_rate);
+      },
       sorter: true
     },
     {
@@ -362,10 +369,15 @@ export default function SalesPage() {
                   labelStyle={{ fontWeight: 'bold', width: '140px' }}
                 >
                   <Text strong>
-                    {formatPriceWithExchange(
-                      detailsSale.total,
-                      detailsSale.exchange_rate
-                    )}
+                    {detailsSale.total_ars
+                      ? formatDualPrice(
+                          detailsSale.total,
+                          detailsSale.total_ars
+                        )
+                      : formatPriceWithExchange(
+                          detailsSale.total,
+                          detailsSale.exchange_rate
+                        )}
                   </Text>
                 </Descriptions.Item>
                 <Descriptions.Item
@@ -475,6 +487,14 @@ export default function SalesPage() {
                     title: 'Precio Unitario',
                     key: 'price',
                     render: (item: SaleItem) => {
+                      // Si tiene precio en ARS almacenado, usarlo
+                      if (item.price_ars) {
+                        return formatDualPrice(
+                          item.selling_price,
+                          item.price_ars
+                        );
+                      }
+
                       // Si el precio de venta no existe, calcular usando la lógica de margen
                       if (!item.selling_price) {
                         const sellingPrice = calculateSellingPrice(
@@ -503,8 +523,18 @@ export default function SalesPage() {
                         price = calculateSellingPrice(item.product);
                       }
 
+                      const quantity = item.quantity;
+                      const subtotalUsd = price * quantity;
+
+                      // Si tiene precio en ARS almacenado, calcular el subtotal en ARS
+                      if (item.price_ars) {
+                        const priceArs = toNumber(item.price_ars);
+                        const subtotalArs = priceArs * quantity;
+                        return formatDualPrice(subtotalUsd, subtotalArs);
+                      }
+
                       return formatPriceWithExchange(
-                        price * item.quantity,
+                        subtotalUsd,
                         detailsSale.exchange_rate
                       );
                     }
@@ -512,6 +542,9 @@ export default function SalesPage() {
                 ]}
                 summary={(pageData) => {
                   let totalPrice = 0;
+                  let totalPriceArs = 0;
+                  let hasArsPrice = false;
+
                   pageData.forEach((item) => {
                     // Calcular el precio de venta si no está disponible
                     let price = 0;
@@ -522,6 +555,12 @@ export default function SalesPage() {
                     }
 
                     totalPrice += price * item.quantity;
+
+                    // Si hay precio en ARS almacenado, sumarlo
+                    if (item.price_ars) {
+                      hasArsPrice = true;
+                      totalPriceArs += toNumber(item.price_ars) * item.quantity;
+                    }
                   });
 
                   return (
@@ -531,10 +570,12 @@ export default function SalesPage() {
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={1} align="right">
                         <strong style={{ fontSize: '1.1em' }}>
-                          {formatPriceWithExchange(
-                            totalPrice,
-                            detailsSale.exchange_rate
-                          )}
+                          {hasArsPrice
+                            ? formatDualPrice(totalPrice, totalPriceArs)
+                            : formatPriceWithExchange(
+                                totalPrice,
+                                detailsSale.exchange_rate
+                              )}
                         </strong>
                       </Table.Summary.Cell>
                     </Table.Summary.Row>

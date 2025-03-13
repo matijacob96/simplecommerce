@@ -602,10 +602,12 @@ export default function NewSalePage() {
                       }))
                     ]}
                     filterOption={(inputValue, option) =>
-                      option!.label
-                        .toString()
-                        .toLowerCase()
-                        .indexOf(inputValue.toLowerCase()) !== -1
+                      option?.label
+                        ? option.label
+                            .toString()
+                            .toLowerCase()
+                            .indexOf(inputValue.toLowerCase()) !== -1
+                        : false
                     }
                   />
                 </div>
@@ -718,9 +720,11 @@ export default function NewSalePage() {
                   style={{ width: '100%' }}
                   showSearch
                   filterOption={(input, option) =>
-                    (option?.children as unknown as string)
-                      ?.toLowerCase()
-                      .includes(input.toLowerCase())
+                    option?.children
+                      ? String(option.children)
+                          .toLowerCase()
+                          .includes(input.toLowerCase())
+                      : false
                   }
                 >
                   {products
