@@ -13,10 +13,10 @@ import {
   Descriptions,
   Row,
   Col,
-  Tooltip,
+  Tooltip
 } from 'antd';
 import { StyleProvider } from '@ant-design/cssinjs';
-import type { TableProps, ColumnsType } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import type { TablePaginationConfig } from 'antd/es/table';
 import type { FilterValue, SorterResult } from 'antd/es/table/interface';
 import {
@@ -60,10 +60,10 @@ export default function SalesPage() {
   }>({
     pagination: {
       current: 1,
-      pageSize: 10,
+      pageSize: 10
     },
     sortField: null,
-    sortOrder: null,
+    sortOrder: null
   });
 
   // Usar useCallback para la función fetchSales
@@ -91,7 +91,7 @@ export default function SalesPage() {
   const handleDelete = async (id: number) => {
     try {
       const response = await fetch(`/api/sales/${id}`, {
-        method: 'DELETE',
+        method: 'DELETE'
       });
 
       if (!response.ok) {
@@ -103,7 +103,9 @@ export default function SalesPage() {
       fetchSaleData(); // Recargar la lista de ventas
     } catch (error) {
       console.error('Error:', error);
-      message.error(error instanceof Error ? error.message : 'Error al eliminar la venta');
+      message.error(
+        error instanceof Error ? error.message : 'Error al eliminar la venta'
+      );
     }
   };
 
@@ -111,13 +113,14 @@ export default function SalesPage() {
     confirm({
       title: '¿Estás seguro de eliminar esta venta?',
       icon: <ExclamationCircleOutlined />,
-      content: 'Esta acción restaurará el stock de los productos. No se puede deshacer.',
+      content:
+        'Esta acción restaurará el stock de los productos. No se puede deshacer.',
       okText: 'Sí, eliminar',
       okType: 'danger',
       cancelText: 'Cancelar',
       onOk() {
         handleDelete(id);
-      },
+      }
     });
   };
 
@@ -142,19 +145,23 @@ export default function SalesPage() {
       transferencia: { color: 'blue', text: 'Transferencia' },
       tarjeta: { color: 'purple', text: 'Tarjeta' },
       credito: { color: 'orange', text: 'Crédito' },
-      default: { color: 'default', text: method }
+      default: { color: 'default', text: method || 'Desconocido' }
     };
 
-    const { color, text } = methods[method] || methods.default;
+    const { color, text } = methods[method] ||
+      methods.default || { color: 'default', text: 'Desconocido' };
     return <Tag color={color}>{text}</Tag>;
   };
 
   const renderCustomerName = (sale: Sale) => {
-    if (!sale.customer) return <Text type="secondary">Cliente no registrado</Text>;
+    if (!sale.customer)
+      return <Text type="secondary">Cliente no registrado</Text>;
 
     return (
       <div>
-        <Text strong style={{ margin: 0 }}>{sale.customer.name}</Text>
+        <Text strong style={{ margin: 0 }}>
+          {sale.customer.name}
+        </Text>
       </div>
     );
   };
@@ -168,10 +175,14 @@ export default function SalesPage() {
     setTableParams({
       pagination: {
         current: pagination.current || 1,
-        pageSize: pagination.pageSize || 10,
+        pageSize: pagination.pageSize || 10
       },
-      sortField: Array.isArray(sorter) ? sorter[0]?.field?.toString() || null : sorter.field?.toString() || null,
-      sortOrder: Array.isArray(sorter) ? sorter[0]?.order?.toString() || null : sorter.order?.toString() || null,
+      sortField: Array.isArray(sorter)
+        ? sorter[0]?.field?.toString() || null
+        : sorter.field?.toString() || null,
+      sortOrder: Array.isArray(sorter)
+        ? sorter[0]?.order?.toString() || null
+        : sorter.order?.toString() || null
     });
   };
 
@@ -186,7 +197,11 @@ export default function SalesPage() {
 
       switch (tableParams.sortField) {
         case 'created_at':
-          return sortOrder * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+          return (
+            sortOrder *
+            (new Date(a.created_at).getTime() -
+              new Date(b.created_at).getTime())
+          );
 
         case 'customer':
           const aName = a.customer?.name || '';
@@ -217,14 +232,14 @@ export default function SalesPage() {
       key: 'created_at',
       render: (date: string) => formatDate(date),
       sorter: true,
-      defaultSortOrder: 'descend',
+      defaultSortOrder: 'descend'
     },
     {
       title: 'Cliente',
       key: 'customer',
       dataIndex: 'customer',
       render: (_: unknown, sale: Sale) => renderCustomerName(sale),
-      sorter: true,
+      sorter: true
     },
     {
       title: 'Medio de Pago',
@@ -234,23 +249,24 @@ export default function SalesPage() {
       sorter: true,
       filters: [
         { text: 'Efectivo', value: 'efectivo' },
-        { text: 'Transferencia', value: 'transferencia' },
+        { text: 'Transferencia', value: 'transferencia' }
       ],
-      onFilter: (value, record) => record.payment_method === value,
+      onFilter: (value, record) => record.payment_method === value
     },
     {
       title: 'Total',
       dataIndex: 'total',
       key: 'total',
-      render: (total: Prisma.Decimal, record: Sale) => formatPriceWithExchange(total, record.exchange_rate),
-      sorter: true,
+      render: (total: Prisma.Decimal, record: Sale) =>
+        formatPriceWithExchange(total, record.exchange_rate),
+      sorter: true
     },
     {
       title: 'Productos',
       key: 'items',
       dataIndex: 'items',
       render: (_: unknown, sale: Sale) => `${sale.items.length} productos`,
-      sorter: true,
+      sorter: true
     },
     {
       title: 'Acciones',
@@ -263,11 +279,7 @@ export default function SalesPage() {
             size="small"
           />
           <Link href={`/sales/edit/${sale.id}`}>
-            <Button
-              icon={<EditOutlined />}
-              type="primary"
-              size="small"
-            />
+            <Button icon={<EditOutlined />} type="primary" size="small" />
           </Link>
           <Button
             icon={<DeleteOutlined />}
@@ -276,27 +288,31 @@ export default function SalesPage() {
             size="small"
           />
         </Space>
-      ),
-    },
+      )
+    }
   ];
 
   return (
     <StyleProvider hashPriority="high">
       <div style={{ padding: 16 }}>
-        <Card title={<Row justify="space-between" align="middle">
-          <Col>
-            <Title style={{ margin: 0 }} level={3}>Ventas</Title>
-          </Col>
-          <Col>
-            <Link href="/sales/new">
-              <Button type="primary" icon={<PlusOutlined />}>
-                Nueva Venta
-              </Button>
-            </Link>
-          </Col>
-        </Row>}>
-
-
+        <Card
+          title={
+            <Row justify="space-between" align="middle">
+              <Col>
+                <Title style={{ margin: 0 }} level={3}>
+                  Ventas
+                </Title>
+              </Col>
+              <Col>
+                <Link href="/sales/new">
+                  <Button type="primary" icon={<PlusOutlined />}>
+                    Nueva Venta
+                  </Button>
+                </Link>
+              </Col>
+            </Row>
+          }
+        >
           <div style={{ position: 'relative', minHeight: '200px' }}>
             <Table
               columns={columns}
@@ -308,7 +324,7 @@ export default function SalesPage() {
                 ...tableParams.pagination,
                 showSizeChanger: true,
                 pageSizeOptions: ['10', '20', '50', '100'],
-                showTotal: (total) => `Total ${total} ventas`,
+                showTotal: (total) => `Total ${total} ventas`
               }}
             />
           </div>
@@ -328,22 +344,47 @@ export default function SalesPage() {
         >
           {detailsSale && (
             <div>
-              <Descriptions bordered column={2} size="middle" layout="horizontal" style={{ marginBottom: 20 }}>
-                <Descriptions.Item label="Fecha" labelStyle={{ fontWeight: 'bold', width: '140px' }}>
+              <Descriptions
+                bordered
+                column={2}
+                size="middle"
+                layout="horizontal"
+                style={{ marginBottom: 20 }}
+              >
+                <Descriptions.Item
+                  label="Fecha"
+                  labelStyle={{ fontWeight: 'bold', width: '140px' }}
+                >
                   <Text>{formatDate(detailsSale.created_at)}</Text>
                 </Descriptions.Item>
-                <Descriptions.Item label="Total" labelStyle={{ fontWeight: 'bold', width: '140px' }}>
+                <Descriptions.Item
+                  label="Total"
+                  labelStyle={{ fontWeight: 'bold', width: '140px' }}
+                >
                   <Text strong>
-                    {formatPriceWithExchange(detailsSale.total, detailsSale.exchange_rate)}
+                    {formatPriceWithExchange(
+                      detailsSale.total,
+                      detailsSale.exchange_rate
+                    )}
                   </Text>
                 </Descriptions.Item>
-                <Descriptions.Item label="Método de Pago" labelStyle={{ fontWeight: 'bold', width: '140px' }}>
+                <Descriptions.Item
+                  label="Método de Pago"
+                  labelStyle={{ fontWeight: 'bold', width: '140px' }}
+                >
                   {renderPaymentMethod(detailsSale.payment_method)}
                 </Descriptions.Item>
-                <Descriptions.Item label="Cantidad de Productos" labelStyle={{ fontWeight: 'bold', width: '140px' }}>
+                <Descriptions.Item
+                  label="Cantidad de Productos"
+                  labelStyle={{ fontWeight: 'bold', width: '140px' }}
+                >
                   <Text>{detailsSale.items.length}</Text>
                 </Descriptions.Item>
-                <Descriptions.Item label="Cliente" labelStyle={{ fontWeight: 'bold', width: '140px' }} span={2}>
+                <Descriptions.Item
+                  label="Cliente"
+                  labelStyle={{ fontWeight: 'bold', width: '140px' }}
+                  span={2}
+                >
                   {detailsSale.customer ? (
                     <div>
                       <Text strong style={{ margin: 0 }}>
@@ -351,23 +392,53 @@ export default function SalesPage() {
                       </Text>
                       <Space style={{ marginTop: 8 }}>
                         {detailsSale.customer.whatsapp && (
-                          <Tooltip title={`WhatsApp: ${detailsSale.customer.whatsapp}`}>
-                            <a href={`https://wa.me/${detailsSale.customer.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
-                              <WhatsAppOutlined style={{ fontSize: '18px', color: '#25D366' }} />
+                          <Tooltip
+                            title={`WhatsApp: ${detailsSale.customer.whatsapp}`}
+                          >
+                            <a
+                              href={`https://wa.me/${detailsSale.customer.whatsapp.replace(
+                                /\D/g,
+                                ''
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <WhatsAppOutlined
+                                style={{ fontSize: '18px', color: '#25D366' }}
+                              />
                             </a>
                           </Tooltip>
                         )}
                         {detailsSale.customer.instagram && (
-                          <Tooltip title={`Instagram: ${detailsSale.customer.instagram}`}>
-                            <a href={`https://instagram.com/${detailsSale.customer.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer">
-                              <InstagramOutlined style={{ fontSize: '18px', color: '#E1306C' }} />
+                          <Tooltip
+                            title={`Instagram: ${detailsSale.customer.instagram}`}
+                          >
+                            <a
+                              href={`https://instagram.com/${detailsSale.customer.instagram.replace(
+                                '@',
+                                ''
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <InstagramOutlined
+                                style={{ fontSize: '18px', color: '#E1306C' }}
+                              />
                             </a>
                           </Tooltip>
                         )}
                         {detailsSale.customer.facebook && (
-                          <Tooltip title={`Facebook: ${detailsSale.customer.facebook}`}>
-                            <a href={`https://facebook.com/${detailsSale.customer.facebook}`} target="_blank" rel="noopener noreferrer">
-                              <FacebookOutlined style={{ fontSize: '18px', color: '#1877F2' }} />
+                          <Tooltip
+                            title={`Facebook: ${detailsSale.customer.facebook}`}
+                          >
+                            <a
+                              href={`https://facebook.com/${detailsSale.customer.facebook}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <FacebookOutlined
+                                style={{ fontSize: '18px', color: '#1877F2' }}
+                              />
                             </a>
                           </Tooltip>
                         )}
@@ -393,12 +464,12 @@ export default function SalesPage() {
                   {
                     title: 'Producto',
                     dataIndex: ['product', 'name'],
-                    key: 'product',
+                    key: 'product'
                   },
                   {
                     title: 'Cantidad',
                     dataIndex: 'quantity',
-                    key: 'quantity',
+                    key: 'quantity'
                   },
                   {
                     title: 'Precio Unitario',
@@ -406,11 +477,19 @@ export default function SalesPage() {
                     render: (item: SaleItem) => {
                       // Si el precio de venta no existe, calcular usando la lógica de margen
                       if (!item.selling_price) {
-                        const sellingPrice = calculateSellingPrice(item.product);
-                        return formatPriceWithExchange(sellingPrice, detailsSale.exchange_rate);
+                        const sellingPrice = calculateSellingPrice(
+                          item.product
+                        );
+                        return formatPriceWithExchange(
+                          sellingPrice,
+                          detailsSale.exchange_rate
+                        );
                       }
-                      return formatPriceWithExchange(item.selling_price, detailsSale.exchange_rate);
-                    },
+                      return formatPriceWithExchange(
+                        item.selling_price,
+                        detailsSale.exchange_rate
+                      );
+                    }
                   },
                   {
                     title: 'Subtotal',
@@ -424,9 +503,12 @@ export default function SalesPage() {
                         price = calculateSellingPrice(item.product);
                       }
 
-                      return formatPriceWithExchange(price * item.quantity, detailsSale.exchange_rate);
-                    },
-                  },
+                      return formatPriceWithExchange(
+                        price * item.quantity,
+                        detailsSale.exchange_rate
+                      );
+                    }
+                  }
                 ]}
                 summary={(pageData) => {
                   let totalPrice = 0;
@@ -449,7 +531,10 @@ export default function SalesPage() {
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={1} align="right">
                         <strong style={{ fontSize: '1.1em' }}>
-                          {formatPriceWithExchange(totalPrice, detailsSale.exchange_rate)}
+                          {formatPriceWithExchange(
+                            totalPrice,
+                            detailsSale.exchange_rate
+                          )}
                         </strong>
                       </Table.Summary.Cell>
                     </Table.Summary.Row>
@@ -462,4 +547,4 @@ export default function SalesPage() {
       </div>
     </StyleProvider>
   );
-} 
+}

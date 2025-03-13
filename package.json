@@ -8,10 +8,7 @@
         "start": "next start",
         "lint": "next lint --fix",
         "lint-staged": "lint-staged",
-        "prepare": "husky",
-        "verificar-linter": "node scripts/verificar-linter.js",
-        "lint:strict": "eslint --max-warnings=0 .",
-        "find-any": "node scripts/find-any.js"
+        "prepare": "husky"
     },
     "dependencies": {
         "@ant-design/nextjs-registry": "^1.0.2",
