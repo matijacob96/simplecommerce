@@ -16,6 +16,7 @@ import {
   formatUsdPrice,
   formatArsPrice
 } from '@/utils/priceUtils';
+import { Spin } from 'antd';
 
 // Tipos
 type Category = {
@@ -450,7 +451,7 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
 // Componente principal con Suspense boundary
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<div>Cargando estado de la aplicación...</div>}>
+    <Suspense fallback={<Spin size="large" fullscreen />}>
       <AppStateProviderContent>{children}</AppStateProviderContent>
     </Suspense>
   );
