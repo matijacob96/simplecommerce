@@ -9,7 +9,6 @@ import {
   Select,
   Typography,
   message,
-  Breadcrumb,
   Space,
   Divider,
   Empty,
@@ -26,15 +25,20 @@ import {
   PlusOutlined,
   WhatsAppOutlined,
   InstagramOutlined,
-  FacebookOutlined
+  FacebookOutlined,
+  EditOutlined,
+  CheckOutlined,
+  CloseOutlined
 } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { Customer, Product } from '../../../types';
 import {
   formatUsdPrice,
-  calculateSellingPrice
+  calculateSellingPrice,
+  formatPriceWithExchange,
+  calculateArsPrice
 } from '../../../utils/priceUtils';
+import { useAuth } from '@/lib/AuthContext';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -44,7 +48,10 @@ type NewSaleItem = {
   product_id: number;
   quantity: number;
   product: Product;
-  selling_price: number; // Precio de venta calculado
+  selling_price: number;
+  price_ars: number;
+  custom_price?: boolean; // Indica si el precio ha sido personalizado manualmente
+  editing?: boolean; // Para controlar edición en línea
 };
 
 // Tipo para el nuevo cliente
@@ -68,7 +75,12 @@ export default function NewSalePage() {
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomerData, setNewCustomerData] =
     useState<NewCustomerData | null>(null);
+  const [selectedProductPrice, setSelectedProductPrice] = useState<
+    number | null
+  >(null);
+
   const router = useRouter();
+  const { user } = useAuth();
 
   // Convertir las funciones fetch a useCallback
   const fetchProducts = useCallback(async () => {
@@ -122,6 +134,19 @@ export default function NewSalePage() {
     fetchExchangeRate();
   }, [fetchProducts, fetchCustomers, fetchExchangeRate]);
 
+  // Manejar selección de producto
+  const handleProductSelect = (productId: number) => {
+    setSelectedProduct(productId);
+
+    const product = products.find((p) => p.id === productId);
+    if (product) {
+      const price = calculateSellingPrice(product);
+      setSelectedProductPrice(price);
+    } else {
+      setSelectedProductPrice(null);
+    }
+  };
+
   const handleAddItem = () => {
     if (!selectedProduct || quantity <= 0) {
       message.warning('Selecciona un producto y una cantidad válida');
@@ -139,8 +164,14 @@ export default function NewSalePage() {
       return;
     }
 
-    // Calcular precio de venta usando la función de la utilidad
-    const selling_price = calculateSellingPrice(product);
+    // Usar el precio editado si existe, de lo contrario calcular el predeterminado
+    const selling_price =
+      selectedProductPrice || calculateSellingPrice(product);
+
+    // Calcular precio en ARS usando la función de priceUtils
+    const price_ars = exchangeRate
+      ? calculateArsPrice(selling_price, exchangeRate)
+      : 0;
 
     // Verificar si el producto ya está en la lista
     const existingItemIndex = saleItems.findIndex(
@@ -170,13 +201,16 @@ export default function NewSalePage() {
           product_id: selectedProduct,
           quantity,
           product,
-          selling_price
+          selling_price,
+          price_ars,
+          custom_price: selectedProductPrice !== null // Marcar como personalizado si se editó el precio
         }
       ]);
     }
 
     // Resetear selección
     setSelectedProduct(null);
+    setSelectedProductPrice(null);
     setQuantity(1);
   };
 
@@ -219,6 +253,75 @@ export default function NewSalePage() {
     }
   };
 
+  // Iniciar edición del precio para un ítem
+  const startEditing = (index: number) => {
+    const updatedItems = [...saleItems];
+    const item = updatedItems[index];
+    if (item) {
+      item.editing = true;
+      setSaleItems(updatedItems);
+    }
+  };
+
+  // Guardar precio editado
+  const saveEditedPrice = (index: number, newPrice: number) => {
+    if (newPrice <= 0) {
+      message.warning('El precio debe ser mayor a 0');
+      return;
+    }
+
+    const updatedItems = [...saleItems];
+    const item = updatedItems[index];
+    if (!item) {
+      message.warning('Error: no se encontró el ítem seleccionado');
+      return;
+    }
+
+    item.selling_price = newPrice;
+    item.custom_price = true;
+    item.editing = false;
+
+    // Recalcular el precio en ARS utilizando priceUtils
+    if (exchangeRate) {
+      item.price_ars = calculateArsPrice(newPrice, exchangeRate);
+    }
+
+    setSaleItems(updatedItems);
+  };
+
+  // Cancelar la edición del precio
+  const cancelEditing = (index: number) => {
+    const updatedItems = [...saleItems];
+    const item = updatedItems[index];
+    if (item) {
+      item.editing = false;
+    }
+    setSaleItems(updatedItems);
+  };
+
+  // Manejar cambio en la cantidad del producto
+  const handleQuantityChange = (index: number, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      message.warning('La cantidad debe ser mayor a 0');
+      return;
+    }
+
+    const updatedItems = [...saleItems];
+    const item = updatedItems[index];
+    if (!item) return;
+
+    // Verificar stock disponible
+    if (item.product.stock < newQuantity) {
+      message.warning(
+        `No hay suficiente stock (disponible: ${item.product.stock})`
+      );
+      return;
+    }
+
+    item.quantity = newQuantity;
+    setSaleItems(updatedItems);
+  };
+
   const handleCreateSale = async () => {
     if (saleItems.length === 0) {
       message.warning('No hay productos en la venta');
@@ -251,10 +354,13 @@ export default function NewSalePage() {
           product_id: number;
           quantity: number;
           selling_price: number;
+          price_ars: number;
         }[];
         payment_method: string;
         exchange_rate: number | null;
         customer_id?: number;
+        user_id?: string | null;
+        custom_prices?: Record<number, number>;
         customer_data?: {
           name: string;
           whatsapp: string | null;
@@ -263,15 +369,26 @@ export default function NewSalePage() {
         };
       }
 
+      // Preparar precios personalizados
+      const custom_prices: Record<number, number> = {};
+      saleItems.forEach((item) => {
+        if (item.custom_price) {
+          custom_prices[item.product_id] = item.selling_price;
+        }
+      });
+
       // Preparar datos de la venta
       const saleData: SaleData = {
         items: saleItems.map((item) => ({
           product_id: item.product_id,
           quantity: item.quantity,
-          selling_price: item.selling_price // Guardar el precio de venta calculado
+          selling_price: item.selling_price,
+          price_ars: item.price_ars
         })),
         payment_method: paymentMethod,
-        exchange_rate: currentExchangeRate // Guardar el tipo de cambio al momento de la venta
+        exchange_rate: currentExchangeRate, // Guardar el tipo de cambio al momento de la venta
+        user_id: user?.id || null, // Guardar el ID del usuario actual de Supabase
+        custom_prices // Enviar los precios personalizados
       };
 
       // Añadir datos del cliente si corresponde
@@ -318,80 +435,136 @@ export default function NewSalePage() {
     }
   };
 
-  // Formatear precio en doble moneda (USD y ARS)
-  const formatPrice = (price: number | null, exchangeRate?: number) => {
-    if (price === null) return 'U$ 0,00';
-
-    // Si tenemos tipo de cambio, mostrar también el precio en ARS
-    if (exchangeRate) {
-      const priceARS = price * exchangeRate;
-      return `U$ ${price.toLocaleString('es-AR', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      })} | AR$ ${priceARS.toLocaleString('es-AR', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      })}`;
-    }
-
-    // Si no tenemos tipo de cambio, mostrar solo USD
-    return `U$ ${price.toLocaleString('es-AR', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    })}`;
-  };
-
   // Calcular el total
   const calculateTotal = () => {
     return saleItems.reduce((total, item) => {
-      // Usar la función de utilidad para obtener el precio
-      const itemPrice =
-        item.selling_price || calculateSellingPrice(item.product);
-      return total + itemPrice * item.quantity;
+      return total + item.selling_price * item.quantity;
     }, 0);
   };
 
-  const renderSellingPrice = (item: NewSaleItem) => {
-    const sellingPrice =
-      item.selling_price || calculateSellingPrice(item.product);
-    return formatPrice(sellingPrice, exchangeRate || 1200);
-  };
+  // Añadir esta función utilitaria después de calculateTotalArs
+  // Extraer de forma segura el precio en ARS de un string formateado
+  const extractArsPrice = (formattedPrice: string): string => {
+    if (!formattedPrice) return 'AR$ 0.00';
 
-  const renderSubtotal = (item: NewSaleItem) => {
-    const sellingPrice =
-      item.selling_price || calculateSellingPrice(item.product);
-    return formatPrice(sellingPrice * item.quantity, exchangeRate || 1200);
+    const parts = formattedPrice.split('|');
+    if (!parts || parts.length <= 1) return 'AR$ 0.00';
+
+    const arsPart = parts[1]?.trim();
+    return arsPart || 'AR$ 0.00';
   };
 
   // Columnas para la tabla
   const columns = [
+    {
+      title: 'Cantidad',
+      key: 'quantity',
+      width: 100,
+      render: (item: NewSaleItem, _: unknown, index: number) => (
+        <InputNumber
+          min={1}
+          value={item.quantity}
+          onChange={(value) => handleQuantityChange(index, value || 1)}
+          style={{ width: 80 }}
+        />
+      )
+    },
     {
       title: 'Producto',
       dataIndex: ['product', 'name'],
       key: 'product'
     },
     {
-      title: 'Cantidad',
-      dataIndex: 'quantity',
-      key: 'quantity'
+      title: 'Precio USD',
+      key: 'price_usd',
+      width: 160,
+      render: (item: NewSaleItem, _: unknown, index: number) => {
+        if (item.editing) {
+          return (
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <InputNumber
+                style={{ width: 80 }}
+                min={0.01}
+                step={0.01}
+                precision={2}
+                defaultValue={item.selling_price}
+                onBlur={(e) =>
+                  saveEditedPrice(index, parseFloat(e.target.value))
+                }
+                onPressEnter={(e) =>
+                  saveEditedPrice(
+                    index,
+                    parseFloat((e.target as HTMLInputElement).value)
+                  )
+                }
+                autoFocus
+              />
+              <Space size="small" style={{ marginLeft: 4 }}>
+                <Button
+                  size="small"
+                  type="link"
+                  icon={<CheckOutlined style={{ color: '#52c41a' }} />}
+                  onClick={() => {
+                    const input = document.activeElement as HTMLInputElement;
+                    saveEditedPrice(index, parseFloat(input.value));
+                  }}
+                />
+                <Button
+                  size="small"
+                  type="link"
+                  icon={<CloseOutlined style={{ color: '#ff4d4f' }} />}
+                  onClick={() => cancelEditing(index)}
+                />
+              </Space>
+            </div>
+          );
+        }
+
+        return (
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <Text style={{ marginRight: 4 }}>
+              {formatUsdPrice(item.selling_price)}
+            </Text>
+            <Button
+              type="link"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => startEditing(index)}
+              style={{ padding: 0 }}
+            />
+          </div>
+        );
+      }
     },
     {
-      title: 'Precio Venta',
-      key: 'price',
-      render: (record: NewSaleItem) => {
-        return renderSellingPrice(record);
+      title: 'Precio ARS',
+      key: 'price_ars',
+      width: 140,
+      render: (item: NewSaleItem) => {
+        const formattedPrice = formatPriceWithExchange(
+          item.selling_price,
+          exchangeRate
+        );
+        return <Text>{extractArsPrice(formattedPrice)}</Text>;
       }
     },
     {
       title: 'Subtotal',
       key: 'subtotal',
-      render: (record: NewSaleItem) => {
-        return renderSubtotal(record);
-      }
+      width: 140,
+      render: (item: NewSaleItem) => (
+        <Text strong>
+          {formatPriceWithExchange(
+            item.selling_price * item.quantity,
+            exchangeRate
+          )}
+        </Text>
+      )
     },
     {
       title: 'Acciones',
       key: 'action',
+      width: 80,
       render: (_: unknown, _record: unknown, index: number) => (
         <Button
           icon={<DeleteOutlined />}
@@ -404,56 +577,48 @@ export default function NewSalePage() {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <Breadcrumb
-        className="mb-4"
-        items={[
-          { title: <Link href="/sales">Ventas</Link> },
-          { title: 'Nueva Venta' }
-        ]}
-      />
-
-      <div className="flex justify-between items-center mb-6">
-        <Title level={2}>Nueva Venta</Title>
-        <Space>
-          <Button
-            icon={<ArrowLeftOutlined />}
-            onClick={() => router.push('/sales')}
-          >
-            Volver
-          </Button>
-        </Space>
-      </div>
-
+    <div style={{ padding: 16, width: '100%', boxSizing: 'border-box' }}>
       <Row gutter={[16, 16]}>
         <Col span={24}>
-          <Card title="Cliente" style={{ marginBottom: 24 }}>
-            <div className="mb-4">
-              <AutoComplete
-                style={{ width: '100%' }}
-                placeholder="Sin cliente / Buscar cliente / Crear nuevo"
-                onChange={handleCustomerChange}
-                value={
-                  selectedCustomer
-                    ? customers.find((c) => c.id === selectedCustomer)?.name
-                    : undefined
-                }
-                options={[
-                  { value: '', label: 'Sin cliente' },
-                  { value: 'new', label: '+ Crear nuevo cliente' },
-                  ...customers.map((customer) => ({
-                    value: String(customer.id),
-                    label: customer.name
-                  }))
-                ]}
-                filterOption={(inputValue, option) =>
-                  option!.label
-                    .toString()
-                    .toLowerCase()
-                    .indexOf(inputValue.toLowerCase()) !== -1
-                }
-              />
-            </div>
+          <Card title="Cliente" style={{ marginBottom: 16 }}>
+            <Row gutter={16} justify="space-between" align="middle">
+              <Col flex="auto">
+                <div className="mb-4">
+                  <AutoComplete
+                    style={{ width: '100%' }}
+                    placeholder="Sin cliente / Buscar cliente / Crear nuevo"
+                    onChange={handleCustomerChange}
+                    value={
+                      selectedCustomer
+                        ? customers.find((c) => c.id === selectedCustomer)?.name
+                        : undefined
+                    }
+                    options={[
+                      { value: '', label: 'Sin cliente' },
+                      { value: 'new', label: '+ Crear nuevo cliente' },
+                      ...customers.map((customer) => ({
+                        value: String(customer.id),
+                        label: customer.name
+                      }))
+                    ]}
+                    filterOption={(inputValue, option) =>
+                      option!.label
+                        .toString()
+                        .toLowerCase()
+                        .indexOf(inputValue.toLowerCase()) !== -1
+                    }
+                  />
+                </div>
+              </Col>
+              <Col>
+                <Button
+                  icon={<ArrowLeftOutlined />}
+                  onClick={() => router.push('/sales')}
+                >
+                  Volver
+                </Button>
+              </Col>
+            </Row>
 
             {showNewCustomerForm && (
               <div
@@ -533,13 +698,22 @@ export default function NewSalePage() {
             )}
           </Card>
 
-          <Card title="Agregar Productos" variant="outlined">
-            <div className="flex flex-wrap gap-4 items-end">
-              <div className="flex-grow min-w-[200px]">
+          <Card title="Agregar Productos" style={{ marginBottom: 16 }}>
+            <Row gutter={16} align="middle">
+              <Col flex="100px">
+                <Text>Cantidad</Text>
+                <InputNumber
+                  min={1}
+                  value={quantity}
+                  onChange={(value) => setQuantity(value || 1)}
+                  style={{ width: '100%' }}
+                />
+              </Col>
+              <Col flex="auto">
                 <Text>Producto</Text>
                 <Select
                   placeholder="Seleccionar producto"
-                  onChange={(value) => setSelectedProduct(value)}
+                  onChange={handleProductSelect}
                   value={selectedProduct}
                   style={{ width: '100%' }}
                   showSearch
@@ -554,37 +728,64 @@ export default function NewSalePage() {
                     .map((product) => (
                       <Option key={product.id} value={product.id}>
                         {product.name} -{' '}
-                        {formatUsdPrice(calculateSellingPrice(product))} (Stock:{' '}
-                        {product.stock})
+                        {formatPriceWithExchange(
+                          calculateSellingPrice(product),
+                          exchangeRate
+                        )}{' '}
+                        (Stock: {product.stock})
                       </Option>
                     ))}
                 </Select>
-              </div>
-
-              <div style={{ width: '120px' }}>
-                <Text>Cantidad</Text>
-                <InputNumber
-                  min={1}
-                  value={quantity}
-                  onChange={(value) => setQuantity(value || 1)}
-                  style={{ width: '100%' }}
-                />
-              </div>
-
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handleAddItem}
-                disabled={!selectedProduct || quantity <= 0}
-              >
-                Agregar
-              </Button>
-            </div>
+              </Col>
+              <Col flex="160px">
+                <Text>Precio USD</Text>
+                <div>
+                  <InputNumber
+                    style={{ width: '100%' }}
+                    min={0.01}
+                    step={0.01}
+                    precision={2}
+                    value={selectedProductPrice}
+                    onChange={(value) => setSelectedProductPrice(value || 0)}
+                    prefix="U$"
+                  />
+                </div>
+              </Col>
+              <Col flex="140px">
+                <Text>Precio ARS</Text>
+                <div>
+                  <Text>
+                    {(() => {
+                      if (!selectedProductPrice || !exchangeRate)
+                        return 'AR$ 0.00';
+                      const formattedPrice = formatPriceWithExchange(
+                        selectedProductPrice,
+                        exchangeRate
+                      );
+                      return extractArsPrice(formattedPrice);
+                    })()}
+                  </Text>
+                </div>
+              </Col>
+              <Col flex="120px">
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={handleAddItem}
+                  disabled={!selectedProduct || quantity <= 0}
+                  style={{ width: '100%', marginTop: 24 }}
+                >
+                  Agregar
+                </Button>
+              </Col>
+            </Row>
           </Card>
         </Col>
+      </Row>
 
-        <Col xs={24} md={16}>
-          <Card title="Productos en la venta" variant="outlined">
+      <Row gutter={[16, 16]}>
+        <Col xs={24} lg={16} style={{ marginBottom: 16 }}>
+          <Card title="Productos en la venta" style={{ height: '100%' }}>
             {saleItems.length === 0 ? (
               <Empty description="No hay productos agregados" />
             ) : (
@@ -593,42 +794,69 @@ export default function NewSalePage() {
                 columns={columns}
                 pagination={false}
                 rowKey={(record: NewSaleItem) => `${record.product_id}`}
+                bordered
               />
             )}
           </Card>
         </Col>
 
-        <Col xs={24} md={8}>
-          <Card title="Resumen de Venta" variant="outlined">
+        <Col xs={24} lg={8} style={{ marginBottom: 16 }}>
+          <Card title="Resumen de Venta" style={{ height: '100%' }}>
             <div className="mb-4">
-              <div className="flex justify-between mb-2">
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginBottom: 8
+                }}
+              >
                 <Text>Productos:</Text>
                 <Text>{saleItems.length}</Text>
               </div>
-              <div className="flex justify-between mb-2">
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginBottom: 8
+                }}
+              >
                 <Text>Items totales:</Text>
                 <Text>
                   {saleItems.reduce((acc, item) => acc + item.quantity, 0)}
                 </Text>
               </div>
 
-              <div className="mb-4 mt-4">
+              <div style={{ marginTop: 16, marginBottom: 16 }}>
                 <Text strong>Medio de Pago:</Text>
                 <Radio.Group
                   value={paymentMethod}
                   onChange={(e) => setPaymentMethod(e.target.value)}
-                  style={{ display: 'flex', marginTop: '8px' }}
+                  style={{ display: 'flex', marginTop: 8 }}
                 >
                   <Radio value="efectivo">Efectivo</Radio>
                   <Radio value="transferencia">Transferencia</Radio>
                 </Radio.Group>
               </div>
 
-              <Divider />
-              <div className="flex justify-between">
-                <Text strong>Total:</Text>
-                <Text strong>
-                  {formatPrice(calculateTotal(), exchangeRate || 1200)}
+              <Divider style={{ margin: '16px 0' }} />
+
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginBottom: 8
+                }}
+              >
+                <Text strong>Total USD:</Text>
+                <Text strong>{formatUsdPrice(calculateTotal())}</Text>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text strong>Total ARS:</Text>
+                <Text strong style={{ color: '#52c41a', fontSize: 18 }}>
+                  {extractArsPrice(
+                    formatPriceWithExchange(calculateTotal(), exchangeRate)
+                  )}
                 </Text>
               </div>
             </div>

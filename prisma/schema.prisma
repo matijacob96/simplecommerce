@@ -56,9 +56,11 @@ model Customer {
 model Sale {
   id            Int       @id @default(autoincrement())
   total         Decimal   @default(0)
+  total_ars     Decimal?  @default(0)
   payment_method String    @default("efectivo")
   customer      Customer?  @relation(fields: [customer_id], references: [id])
   customer_id   Int?
+  user_id       String?
   created_at    DateTime  @default(now())
   updated_at    DateTime  @updatedAt
   exchange_rate Decimal?
@@ -66,13 +68,14 @@ model Sale {
 }
 
 model SaleItem {
-  id          Int       @id @default(autoincrement())
-  sale        Sale      @relation(fields: [sale_id], references: [id], onDelete: Cascade)
-  sale_id     Int
-  product     Product   @relation(fields: [product_id], references: [id])
-  product_id  Int
-  quantity    Int
+  id            Int       @id @default(autoincrement())
+  sale          Sale      @relation(fields: [sale_id], references: [id], onDelete: Cascade)
+  sale_id       Int
+  product       Product   @relation(fields: [product_id], references: [id])
+  product_id    Int
+  quantity      Int
   selling_price Decimal
+  price_ars     Decimal?
   
   @@unique([sale_id, product_id])
 }

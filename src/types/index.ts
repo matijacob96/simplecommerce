@@ -28,6 +28,7 @@ export type SaleItem = {
   product_id: number;
   quantity: number;
   selling_price: Prisma.Decimal; // Precio de venta en USD
+  price_ars?: Prisma.Decimal; // Precio de venta en ARS
   product: Product;
 };
 
@@ -36,9 +37,11 @@ export type Sale = {
   created_at: string;
   updated_at: string;
   total: Prisma.Decimal;
+  total_ars?: Prisma.Decimal; // Total en pesos argentinos
   items: SaleItem[];
   payment_method: string;
   customer_id: number | null;
   customer: Customer | null;
   exchange_rate: Prisma.Decimal | null;
-}; 
+  user_id?: string | null; // ID del usuario que creó la venta
+};
