@@ -138,15 +138,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Configurar un intervalo para refrescar el token automáticamente (solo si hay usuario)
-    const tokenRefreshInterval = setInterval(() => {
+    const tokenRefreshInterval = setInterval(async () => {
+      console.log('[AuthContext] Verificando estado del token...');
       const storedUser = getStoredUser();
       const storedToken = getStoredToken();
 
       // Solo intentar refrescar si hay un usuario autenticado
-      if (storedUser && storedToken && isTokenExpiringSoon()) {
-        refreshToken();
+      if (storedUser && storedToken) {
+        if (isTokenExpiringSoon()) {
+          console.log(
+            '[AuthContext] Token por expirar, intentando refrescar proactivamente'
+          );
+          try {
+            const success = await refreshToken();
+            if (success) {
+              console.log('[AuthContext] Refresco proactivo exitoso');
+            } else {
+              console.warn(
+                '[AuthContext] Falló el refresco proactivo, se intentará cargar el usuario'
+              );
+              // Intentar cargar el usuario como medida de respaldo
+              await loadUser();
+            }
+          } catch (error) {
+            console.error('[AuthContext] Error en refresco programado:', error);
+
+            // Si hay error de refresco, intentar notificar al usuario y/o recargar
+            setAuthError(
+              error instanceof Error
+                ? error
+                : new Error('Error al mantener tu sesión activa')
+            );
+          }
+        } else {
+          console.log('[AuthContext] Token aún válido, no requiere refresco');
+        }
       }
-    }, 5 * 60 * 1000); // Verificar cada 5 minutos
+    }, 2 * 60 * 1000); // Verificar cada 2 minutos, más frecuente que antes
 
     return () => {
       // Limpiar suscripciones

@@ -96,13 +96,30 @@ export function isTokenExpiringSoon(): boolean {
 
   try {
     const expiryTimeStr = localStorage.getItem(AUTH_EXPIRY_KEY);
-    if (!expiryTimeStr) return true;
+    if (!expiryTimeStr) {
+      console.log('[Auth] No hay tiempo de expiración almacenado');
+      return true;
+    }
 
     const expiryTime = parseInt(expiryTimeStr);
-    // Si expira en menos de 5 minutos, considerarlo como "expirando pronto"
-    return Date.now() > expiryTime - 5 * 60 * 1000;
+    const currentTime = Date.now();
+    const timeRemaining = expiryTime - currentTime;
+
+    // Si expira en menos de 10 minutos, considerarlo como "expirando pronto"
+    // Aumentamos de 5 a 10 minutos para ser más preventivos
+    const isExpiringSoon = timeRemaining < 10 * 60 * 1000;
+
+    if (isExpiringSoon) {
+      console.log(
+        `[Auth] Token expirará pronto. Tiempo restante: ${Math.floor(
+          timeRemaining / 1000
+        )} segundos`
+      );
+    }
+
+    return isExpiringSoon;
   } catch (error) {
-    console.error('Error al verificar expiración:', error);
+    console.error('[Auth] Error al verificar expiración:', error);
     return true;
   }
 }
@@ -113,26 +130,29 @@ export async function refreshToken(): Promise<boolean> {
     // Verificar si hay un token almacenado antes de intentar refrescar
     const storedToken = getStoredToken();
     if (!storedToken) {
-      // No hay token almacenado, probablemente es un usuario anónimo
+      console.log('[Auth] No hay token almacenado, no se intentará refrescar');
       return false;
     }
 
+    console.log('[Auth] Intentando refrescar token...');
     const { data, error } = await supabase.auth.refreshSession();
 
     if (error) {
       // Manejar específicamente el error de sesión faltante
       if (error.message.includes('Auth session missing')) {
+        console.error('[Auth] Error: Sesión de autenticación faltante', error);
         clearAuthData();
         return false;
       }
 
       // Otros errores
-      console.error('Error al refrescar token:', error);
+      console.error('[Auth] Error al refrescar token:', error);
       clearAuthData();
       return false;
     }
 
     if (!data.session) {
+      console.error('[Auth] Error: No se obtuvo una sesión nueva');
       clearAuthData();
       return false;
     }
@@ -140,6 +160,7 @@ export async function refreshToken(): Promise<boolean> {
     // Actualizar token en localStorage
     const user = await getUserFromSession(data.session);
     if (user) {
+      console.log('[Auth] Token refrescado correctamente');
       saveAuthData(
         data.session.access_token,
         data.session.refresh_token,
@@ -149,9 +170,10 @@ export async function refreshToken(): Promise<boolean> {
       return true;
     }
 
+    console.error('[Auth] Error: No se pudo obtener información del usuario');
     return false;
   } catch (err) {
-    console.error('Error inesperado al refrescar token:', err);
+    console.error('[Auth] Error inesperado al refrescar token:', err);
     clearAuthData();
     return false;
   }
@@ -282,51 +304,144 @@ export async function signOut() {
 
 // Función para obtener el usuario actual
 export async function getCurrentUser(): Promise<User | null> {
+  console.log('[Auth] Iniciando obtención de usuario actual...');
+
   // 1. Primero intentar obtener del almacenamiento local para respuesta inmediata
   const storedUser = getStoredUser();
   const storedToken = getStoredToken();
 
   // Si no hay token, probablemente es usuario anónimo
   if (!storedToken) {
+    console.log('[Auth] No hay token almacenado, retornando null');
     return null;
   }
 
   // Si tenemos un usuario almacenado y el token no está por expirar, usarlo
   if (storedUser && storedToken && !isTokenExpiringSoon()) {
+    console.log('[Auth] Utilizando usuario almacenado (token válido)');
     return storedUser;
   }
 
   // 2. Si el token está por expirar, intentar refrescarlo
   if (storedToken && isTokenExpiringSoon()) {
+    console.log('[Auth] Token por expirar, intentando refrescarlo');
     try {
-      const refreshed = await refreshToken();
+      // Añadir timeout para evitar bloqueo indefinido
+      const refreshPromise = refreshToken();
+      const timeoutPromise = new Promise<boolean>((resolve) => {
+        setTimeout(() => {
+          console.error('[Auth] Timeout al refrescar token');
+          resolve(false);
+        }, 5000); // 5 segundos de timeout
+      });
+
+      // Esperar a que se complete la primera promesa (refresco o timeout)
+      const refreshed = await Promise.race([refreshPromise, timeoutPromise]);
+
       if (refreshed) {
         // Si se refrescó correctamente, devolver el usuario almacenado actualizado
+        console.log('[Auth] Token refrescado exitosamente');
         const updatedUser = getStoredUser();
         if (updatedUser) {
           return updatedUser;
         }
+      } else {
+        console.log('[Auth] Falló el refresco, intentando obtener sesión');
       }
     } catch (error) {
-      console.error('Error al refrescar token:', error);
+      console.error('[Auth] Error al refrescar token:', error);
       // Continuar al siguiente paso si falla el refresco
     }
   }
 
   // 3. Si no hay token o falló el refresco, intentar obtener la sesión actual
+  console.log('[Auth] Intentando obtener sesión directamente de Supabase');
   try {
-    const {
-      data: { session }
-    } = await supabase.auth.getSession();
+    // Añadir timeout para la obtención de sesión
+    const sessionPromise = supabase.auth.getSession();
+    const timeoutPromise = new Promise((resolve) => {
+      setTimeout(() => {
+        console.error('[Auth] Timeout al obtener sesión');
+        resolve({ data: { session: null } });
+      }, 5000); // 5 segundos de timeout
+    });
+
+    // Esperar la primera promesa que se complete
+    const result = (await Promise.race([sessionPromise, timeoutPromise])) as {
+      data: { session: unknown };
+    };
+
+    // Verificar que result tiene la estructura esperada
+    if (
+      !result ||
+      typeof result !== 'object' ||
+      !('data' in result) ||
+      !result.data ||
+      typeof result.data !== 'object' ||
+      !('session' in result.data)
+    ) {
+      console.error('[Auth] Resultado inesperado al obtener sesión:', result);
+      clearAuthData();
+      return null;
+    }
+
+    const { session } = result.data;
 
     if (!session) {
+      console.log('[Auth] No se encontró sesión activa');
       clearAuthData(); // Limpiar datos locales si no hay sesión en el servidor
       return null;
     }
 
+    // Verificar que session tiene la estructura mínima necesaria para getUserFromSession
+    if (typeof session !== 'object') {
+      console.error('[Auth] Sesión no es un objeto:', session);
+      clearAuthData();
+      return null;
+    }
+
+    // Type guard para verificar que session tiene las propiedades necesarias
+    const isValidSession = (
+      sess: unknown
+    ): sess is {
+      access_token: string;
+      refresh_token: string;
+      expires_in?: number;
+      user?: {
+        id: string;
+        email?: string;
+        app_metadata?: Record<string, unknown>;
+      };
+    } => {
+      return (
+        typeof sess === 'object' &&
+        sess !== null &&
+        'access_token' in sess &&
+        typeof sess.access_token === 'string' &&
+        'refresh_token' in sess &&
+        typeof sess.refresh_token === 'string' &&
+        (!('user' in sess) ||
+          (typeof sess.user === 'object' &&
+            sess.user !== null &&
+            'id' in sess.user &&
+            typeof sess.user.id === 'string'))
+      );
+    };
+
+    if (!isValidSession(session)) {
+      console.error(
+        '[Auth] Sesión inválida, faltan propiedades requeridas:',
+        session
+      );
+      clearAuthData();
+      return null;
+    }
+
+    console.log('[Auth] Sesión obtenida, recuperando información de usuario');
     // Obtener usuario desde la sesión
     const user = await getUserFromSession(session);
     if (user) {
+      console.log('[Auth] Usuario recuperado correctamente');
       // Actualizar almacenamiento local con los datos nuevos
       saveAuthData(
         session.access_token,
@@ -337,10 +452,11 @@ export async function getCurrentUser(): Promise<User | null> {
       return user;
     }
 
+    console.log('[Auth] No se pudo recuperar información del usuario');
     return null;
   } catch (error: unknown) {
     // Si hay error al obtener la sesión, limpiar datos locales
-    console.error('Error al obtener la sesión:', error);
+    console.error('[Auth] Error al obtener la sesión:', error);
     clearAuthData();
     return null;
   }
