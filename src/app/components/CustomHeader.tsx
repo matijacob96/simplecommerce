@@ -67,8 +67,10 @@ export function CustomHeader() {
 
   // Asegurarse que el menú se actualice cuando cambia el estado de autenticación
   useEffect(() => {
-    if (isAuthenticated && drawerVisible) {
-      // Cerrar el drawer si el usuario ya se autenticó y estaba abierto
+    // Sólo cerrar el drawer cuando el usuario se autentica, no cuando ya está autenticado
+    // y simplemente está abriendo el drawer
+    if (isAuthenticated && drawerVisible && !user) {
+      // Cerrar el drawer únicamente durante el proceso de autenticación inicial
       setDrawerVisible(false);
     }
 
@@ -77,7 +79,7 @@ export function CustomHeader() {
       setIsMobile(window.innerWidth < 992);
     };
     checkIsMobile();
-  }, [isAuthenticated, drawerVisible]);
+  }, [isAuthenticated, user]);
 
   // Función para mostrar/ocultar el drawer
   const toggleDrawer = () => {
