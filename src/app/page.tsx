@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useRef, useEffect, useCallback } from 'react';
 import {
   Input,
   Select,
@@ -16,8 +16,9 @@ import {
   Switch,
   Button,
   Tooltip,
-  Skeleton,
-  Drawer
+  Drawer,
+  ConfigProvider,
+  App
 } from 'antd';
 import {
   SearchOutlined,
@@ -25,10 +26,82 @@ import {
   InboxOutlined,
   DollarOutlined
 } from '@ant-design/icons';
-import { useAppState } from '@/lib/AppStateContext';
+import { Product, useAppState } from '@/lib/AppStateContext';
 
 const { Option } = Select;
 const { Text, Title } = Typography;
+
+// Hook personalizado para manejar el montaje/desmontaje seguro
+const useMountedState = () => {
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  return mountedRef;
+};
+
+// Componente simplificado para la imagen que no usa CSS-in-JS de Ant Design
+interface SafeImageProps {
+  src?: string;
+  alt: string;
+  style?: React.CSSProperties;
+  preview?: boolean;
+  fallback?: string;
+  [key: string]: unknown;
+}
+
+const SafeImage = ({ src, alt, style, ...props }: SafeImageProps) => {
+  const [hasError, setHasError] = useState(false);
+  const isMounted = useMountedState();
+
+  const handleError = useCallback(() => {
+    if (isMounted.current) {
+      setHasError(true);
+    }
+  }, [isMounted]);
+
+  if (!src || hasError) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#f5f5f5',
+          width: style?.width || '120px',
+          height: style?.height || '120px',
+          borderRadius: '4px',
+          ...style
+        }}
+      >
+        <InboxOutlined
+          style={{
+            fontSize: 48,
+            color: '#d9d9d9'
+          }}
+        />
+      </div>
+    );
+  }
+
+  // Usar Image directamente con lazy loading y sin spinner adicional
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      style={style}
+      placeholder={false}
+      preview={false}
+      loading="lazy"
+      onError={handleError}
+      {...props}
+    />
+  );
+};
 
 // Estilos CSS para la scrollbar invisible
 const scrollbarStyles = `
@@ -59,6 +132,7 @@ const scrollbarStyles = `
 
 // Componente interno que usa useSearchParams
 function CatalogContent() {
+  const isMounted = useMountedState();
   const {
     filteredProducts,
     categories,
@@ -69,17 +143,36 @@ function CatalogContent() {
     search,
     filter,
     onlyAvailable,
+    sortBy,
     setSearch,
     handleSearchSubmit,
     handleSearchClear,
     handleCategoryChange,
     handleAvailabilityChange,
+    handleSortChange,
     getPrices,
     refreshData
   } = useAppState();
 
   // Estado local solo para el drawer de filtros
   const [filterDrawerVisible, setFilterDrawerVisible] = useState(false);
+
+  // Función para cerrar el drawer
+  const handleCloseDrawer = useCallback(() => {
+    if (isMounted.current) {
+      setFilterDrawerVisible(false);
+    }
+  }, [isMounted]);
+
+  // Funciones seguras para evitar actualizaciones en componentes desmontados
+  const safeSetFilterDrawerVisible = useCallback(
+    (value: boolean) => {
+      if (isMounted.current) {
+        setFilterDrawerVisible(value);
+      }
+    },
+    [isMounted]
+  );
 
   // Lista de categorías para el selector
   const categoryItems = [
@@ -90,9 +183,36 @@ function CatalogContent() {
     }))
   ];
 
+  // Lista de opciones de ordenamiento
+  const sortOptions = [
+    { label: 'Por defecto', value: 'default' },
+    { label: 'Precio: menor a mayor', value: 'price_asc' },
+    { label: 'Precio: mayor a menor', value: 'price_desc' },
+    { label: 'Nombre: A-Z', value: 'name_asc' },
+    { label: 'Nombre: Z-A', value: 'name_desc' }
+  ];
+
   function handleRefreshData() {
     refreshData();
   }
+
+  // Memoizar las funciones de obtención de precios para evitar recálculos innecesarios
+  const getProductPrices = useCallback(
+    (product: Product) => {
+      try {
+        return getPrices(product);
+      } catch (error) {
+        console.error('Error al obtener precios:', error);
+        return {
+          usdPrice: 0,
+          arsPrice: 0,
+          formattedUsd: '$ 0.00',
+          formattedArs: '$ 0.00'
+        };
+      }
+    },
+    [getPrices]
+  );
 
   return (
     <>
@@ -140,7 +260,7 @@ function CatalogContent() {
                   <>
                     <Button
                       icon={<FilterOutlined />}
-                      onClick={() => setFilterDrawerVisible(true)}
+                      onClick={() => safeSetFilterDrawerVisible(true)}
                       size="large"
                       style={{ marginLeft: 8 }}
                     />
@@ -199,23 +319,47 @@ function CatalogContent() {
                     </div>
                   </div>
 
-                  <div>
-                    <Text>Categoría:</Text>
-                    <Select
-                      style={{ width: '100%', marginTop: 2 }}
-                      placeholder="Seleccionar categoría"
-                      value={filter}
-                      onChange={handleCategoryChange}
-                      size="middle"
-                      popupMatchSelectWidth={false}
-                    >
-                      {categoryItems.map((cat) => (
-                        <Option key={cat.value} value={cat.value}>
-                          {cat.label}
-                        </Option>
-                      ))}
-                    </Select>
-                  </div>
+                  {/* Filtros en la misma fila */}
+                  <Row gutter={[16, 0]} style={{ width: '100%' }}>
+                    <Col span={12}>
+                      <div>
+                        <Text>Categoría:</Text>
+                        <Select
+                          style={{ width: '100%', marginTop: 2 }}
+                          placeholder="Seleccionar categoría"
+                          value={filter}
+                          onChange={handleCategoryChange}
+                          size="middle"
+                          popupMatchSelectWidth={false}
+                        >
+                          {categoryItems.map((cat) => (
+                            <Option key={cat.value} value={cat.value}>
+                              {cat.label}
+                            </Option>
+                          ))}
+                        </Select>
+                      </div>
+                    </Col>
+                    <Col span={12}>
+                      <div>
+                        <Text>Ordenar por:</Text>
+                        <Select
+                          style={{ width: '100%', marginTop: 2 }}
+                          placeholder="Seleccionar orden"
+                          value={sortBy}
+                          onChange={handleSortChange}
+                          size="middle"
+                          popupMatchSelectWidth={false}
+                        >
+                          {sortOptions.map((option) => (
+                            <Option key={option.value} value={option.value}>
+                              {option.label}
+                            </Option>
+                          ))}
+                        </Select>
+                      </div>
+                    </Col>
+                  </Row>
 
                   {/* Mostrar tipo de cambio actual */}
                   {loadingDolar ? (
@@ -248,9 +392,10 @@ function CatalogContent() {
         <Drawer
           title="Filtros"
           placement="right"
-          onClose={() => setFilterDrawerVisible(false)}
+          onClose={handleCloseDrawer}
           open={filterDrawerVisible}
           width={isMobile ? '80%' : 400}
+          destroyOnClose={true}
         >
           <Space direction="vertical" style={{ width: '100%' }} size={16}>
             <div>
@@ -270,23 +415,47 @@ function CatalogContent() {
               </div>
             </div>
 
-            <div>
-              <Text strong>Categoría:</Text>
-              <Select
-                style={{ width: '100%', marginTop: 8 }}
-                placeholder="Seleccionar categoría"
-                value={filter}
-                onChange={handleCategoryChange}
-                size="middle"
-                popupMatchSelectWidth={false}
-              >
-                {categoryItems.map((cat) => (
-                  <Option key={cat.value} value={cat.value}>
-                    {cat.label}
-                  </Option>
-                ))}
-              </Select>
-            </div>
+            {/* Filtros en la misma fila en el drawer también */}
+            <Row gutter={[16, 0]}>
+              <Col span={12}>
+                <div>
+                  <Text strong>Categoría:</Text>
+                  <Select
+                    style={{ width: '100%', marginTop: 8 }}
+                    placeholder="Seleccionar categoría"
+                    value={filter}
+                    onChange={handleCategoryChange}
+                    size="middle"
+                    popupMatchSelectWidth={false}
+                  >
+                    {categoryItems.map((cat) => (
+                      <Option key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </Option>
+                    ))}
+                  </Select>
+                </div>
+              </Col>
+              <Col span={12}>
+                <div>
+                  <Text strong>Ordenar por:</Text>
+                  <Select
+                    style={{ width: '100%', marginTop: 8 }}
+                    placeholder="Seleccionar orden"
+                    value={sortBy}
+                    onChange={handleSortChange}
+                    size="middle"
+                    popupMatchSelectWidth={false}
+                  >
+                    {sortOptions.map((option) => (
+                      <Option key={option.value} value={option.value}>
+                        {option.label}
+                      </Option>
+                    ))}
+                  </Select>
+                </div>
+              </Col>
+            </Row>
 
             {/* Mostrar tipo de cambio actual */}
             {loadingDolar ? (
@@ -357,7 +526,7 @@ function CatalogContent() {
                 </div>
               ) : (
                 <div>
-                  {filteredProducts.length === 0 ? (
+                  {!filteredProducts || filteredProducts.length === 0 ? (
                     <Empty
                       description="No se encontraron productos."
                       image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -374,28 +543,33 @@ function CatalogContent() {
                   ) : (
                     <Row gutter={[16, 16]}>
                       {filteredProducts.map((product) => {
-                        const prices = getPrices(product);
+                        // Verificación básica de producto
+                        if (!product || !product.id) return null;
 
-                        return (
-                          <Col xs={24} md={12} key={product.id}>
-                            <Card
-                              variant="outlined"
-                              style={{ width: '100%', height: '100%' }}
-                            >
-                              {/* Mobile Layout */}
-                              {isMobile && (
-                                <>
-                                  {/* Imagen centrada */}
-                                  <div
-                                    style={{
-                                      display: 'flex',
-                                      justifyContent: 'center',
-                                      width: '100%',
-                                      marginBottom: '16px'
-                                    }}
-                                  >
-                                    {product.image ? (
-                                      <Image
+                        try {
+                          // Obtener precio del producto de forma segura
+                          const prices = getProductPrices(product);
+
+                          // Mostrar el resultado del producto
+                          return (
+                            <Col xs={24} md={12} key={product.id}>
+                              <Card
+                                variant="outlined"
+                                style={{ width: '100%', height: '100%' }}
+                              >
+                                {/* Mobile Layout */}
+                                {isMobile && (
+                                  <>
+                                    {/* Imagen centrada */}
+                                    <div
+                                      style={{
+                                        display: 'flex',
+                                        justifyContent: 'center',
+                                        width: '100%',
+                                        marginBottom: '16px'
+                                      }}
+                                    >
+                                      <SafeImage
                                         src={product.image}
                                         alt={product.name}
                                         style={{
@@ -405,125 +579,91 @@ function CatalogContent() {
                                           borderRadius: '4px'
                                         }}
                                         preview={false}
-                                        placeholder={
-                                          <Skeleton.Image
-                                            active
-                                            style={{
-                                              width: '200px',
-                                              height: '200px'
-                                            }}
-                                          />
-                                        }
                                         fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNmNWY1ZjUiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjZDlkOWQ5Ij5JbWFnZW4gbm8gZGlzcG9uaWJsZTwvdGV4dD48L3N2Zz4="
-                                        onError={(error) => {
-                                          console.error(
-                                            'Error al cargar imagen de: ',
-                                            product.id,
-                                            '. Error: ',
-                                            error
-                                          );
-                                        }}
                                       />
-                                    ) : (
+                                    </div>
+
+                                    {/* Título con elipsis y tooltip */}
+                                    <Tooltip title={product.name}>
                                       <div
                                         style={{
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          background: '#f5f5f5',
-                                          width: '200px',
-                                          height: '200px',
-                                          borderRadius: '4px'
+                                          width: '100%',
+                                          marginBottom: '12px'
                                         }}
                                       >
-                                        <InboxOutlined
+                                        <Title
+                                          level={4}
+                                          ellipsis={{ tooltip: true }}
                                           style={{
-                                            fontSize: 48,
-                                            color: '#d9d9d9'
+                                            margin: 0,
+                                            width: '100%',
+                                            whiteSpace: 'nowrap',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis'
                                           }}
-                                        />
+                                        >
+                                          {product.name}
+                                        </Title>
                                       </div>
-                                    )}
-                                  </div>
+                                    </Tooltip>
 
-                                  {/* Título con elipsis y tooltip */}
-                                  <Tooltip title={product.name}>
-                                    <div
+                                    {/* Precios en una fila */}
+                                    <Row
+                                      align="middle"
+                                      justify="space-between"
+                                      style={{ marginBottom: '12px' }}
+                                    >
+                                      <Col>
+                                        <Text
+                                          style={{
+                                            fontSize: 14,
+                                            color: '#8c8c8c'
+                                          }}
+                                        >
+                                          {prices.formattedUsd}
+                                        </Text>
+                                      </Col>
+                                      <Col>
+                                        <Title
+                                          level={3}
+                                          style={{
+                                            margin: 0,
+                                            color: '#52c41a'
+                                          }}
+                                        >
+                                          {prices.formattedArs}
+                                        </Title>
+                                      </Col>
+                                    </Row>
+
+                                    <Divider style={{ margin: '0 0 12px 0' }} />
+
+                                    {/* Stock debajo del precio */}
+                                    <Text
                                       style={{
-                                        width: '100%',
-                                        marginBottom: '12px'
+                                        color:
+                                          product.stock <= 5 &&
+                                          product.stock > 0
+                                            ? '#ff4d4f'
+                                            : undefined,
+                                        display: 'block',
+                                        textAlign: 'right'
                                       }}
                                     >
-                                      <Title
-                                        level={4}
-                                        ellipsis={{ tooltip: true }}
-                                        style={{
-                                          margin: 0,
-                                          width: '100%',
-                                          whiteSpace: 'nowrap',
-                                          overflow: 'hidden',
-                                          textOverflow: 'ellipsis'
-                                        }}
-                                      >
-                                        {product.name}
-                                      </Title>
-                                    </div>
-                                  </Tooltip>
+                                      Stock: {product.stock}{' '}
+                                      {product.stock <= 5 && product.stock > 0
+                                        ? '(¡Últimas unidades!)'
+                                        : ''}
+                                    </Text>
+                                  </>
+                                )}
 
-                                  {/* Precios en una fila */}
-                                  <Row
-                                    align="middle"
-                                    justify="space-between"
-                                    style={{ marginBottom: '12px' }}
-                                  >
-                                    <Col>
-                                      <Text
-                                        style={{
-                                          fontSize: 14,
-                                          color: '#8c8c8c'
-                                        }}
-                                      >
-                                        {prices.formattedUsd}
-                                      </Text>
-                                    </Col>
-                                    <Col>
-                                      <Title
-                                        level={3}
-                                        style={{ margin: 0, color: '#52c41a' }}
-                                      >
-                                        {prices.formattedArs}
-                                      </Title>
-                                    </Col>
-                                  </Row>
-
-                                  <Divider style={{ margin: '0 0 12px 0' }} />
-
-                                  {/* Stock debajo del precio */}
-                                  <Text
-                                    style={{
-                                      color:
-                                        product.stock <= 5 && product.stock > 0
-                                          ? '#ff4d4f'
-                                          : undefined,
-                                      display: 'block',
-                                      textAlign: 'right'
-                                    }}
-                                  >
-                                    Stock: {product.stock}{' '}
-                                    {product.stock <= 5 && product.stock > 0
-                                      ? '(¡Últimas unidades!)'
-                                      : ''}
-                                  </Text>
-                                </>
-                              )}
-
-                              {/* Desktop Layout */}
-                              {!isMobile && (
-                                <Row wrap={false} align="middle">
-                                  {/* Imagen sin margen a la izquierda */}
-                                  <Col flex="120px">
-                                    {product.image ? (
-                                      <Image
+                                {/* Desktop Layout */}
+                                {!isMobile && (
+                                  <Row wrap={false} align="middle">
+                                    {/* Imagen sin margen a la izquierda */}
+                                    <Col flex="120px">
+                                      <SafeImage
                                         src={product.image}
                                         alt={product.name}
                                         style={{
@@ -534,125 +674,93 @@ function CatalogContent() {
                                           display: 'block'
                                         }}
                                         preview={false}
-                                        placeholder={
-                                          <Skeleton.Image
-                                            active
-                                            style={{
-                                              width: '120px',
-                                              height: '120px'
-                                            }}
-                                          />
-                                        }
                                         fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNmNWY1ZjUiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjZDlkOWQ5Ij5JbWFnZW4gbm8gZGlzcG9uaWJsZTwvdGV4dD48L3N2Zz4="
-                                        onError={(error) => {
-                                          console.error(
-                                            'Error al cargar imagen de: ',
-                                            product.id,
-                                            '. Error: ',
-                                            error
-                                          );
-                                        }}
                                       />
-                                    ) : (
-                                      <div
-                                        style={{
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          background: '#f5f5f5',
-                                          width: '120px',
-                                          height: '120px',
-                                          borderRadius: '4px'
-                                        }}
-                                      >
-                                        <InboxOutlined
-                                          style={{
-                                            fontSize: 48,
-                                            color: '#d9d9d9'
-                                          }}
-                                        />
-                                      </div>
-                                    )}
-                                  </Col>
+                                    </Col>
 
-                                  {/* Espacio de 24px entre imagen y contenido */}
-                                  <Col flex="24px"></Col>
+                                    {/* Espacio de 24px entre imagen y contenido */}
+                                    <Col flex="24px"></Col>
 
-                                  {/* Contenido que crece */}
-                                  <Col flex="auto">
-                                    <Row>
-                                      <Col flex="auto">
-                                        <Tooltip title={product.name}>
-                                          <Title
-                                            level={4}
-                                            ellipsis={{ tooltip: true }}
-                                            style={{
-                                              margin: 0,
-                                              width: '100%'
-                                            }}
-                                          >
-                                            {product.name}
-                                          </Title>
-                                        </Tooltip>
-                                      </Col>
-                                      <Col>
-                                        {loadingDolar || !dolarBlue ? (
-                                          <Spin size="small" />
-                                        ) : (
-                                          <div style={{ textAlign: 'right' }}>
-                                            <Text
-                                              style={{
-                                                fontSize: 14,
-                                                color: '#8c8c8c',
-                                                display: 'block'
-                                              }}
-                                            >
-                                              {prices.formattedUsd}
-                                            </Text>
+                                    {/* Contenido que crece */}
+                                    <Col flex="auto">
+                                      <Row>
+                                        <Col flex="auto">
+                                          <Tooltip title={product.name}>
                                             <Title
-                                              level={3}
+                                              level={4}
+                                              ellipsis={{ tooltip: true }}
                                               style={{
                                                 margin: 0,
-                                                color: '#52c41a'
+                                                width: '100%'
                                               }}
                                             >
-                                              {prices.formattedArs}
+                                              {product.name}
                                             </Title>
-                                          </div>
-                                        )}
-                                      </Col>
-                                    </Row>
+                                          </Tooltip>
+                                        </Col>
+                                        <Col>
+                                          {loadingDolar || !dolarBlue ? (
+                                            <Spin size="small" />
+                                          ) : (
+                                            <div style={{ textAlign: 'right' }}>
+                                              <Text
+                                                style={{
+                                                  fontSize: 14,
+                                                  color: '#8c8c8c',
+                                                  display: 'block'
+                                                }}
+                                              >
+                                                {prices.formattedUsd}
+                                              </Text>
+                                              <Title
+                                                level={3}
+                                                style={{
+                                                  margin: 0,
+                                                  color: '#52c41a'
+                                                }}
+                                              >
+                                                {prices.formattedArs}
+                                              </Title>
+                                            </div>
+                                          )}
+                                        </Col>
+                                      </Row>
 
-                                    <Divider style={{ margin: '12px 0' }} />
+                                      <Divider style={{ margin: '12px 0' }} />
 
-                                    <Row>
-                                      <Col
-                                        span={24}
-                                        style={{ textAlign: 'right' }}
-                                      >
-                                        <Text
-                                          style={{
-                                            color:
-                                              product.stock <= 5 &&
-                                              product.stock > 0
-                                                ? '#ff4d4f'
-                                                : undefined
-                                          }}
+                                      <Row>
+                                        <Col
+                                          span={24}
+                                          style={{ textAlign: 'right' }}
                                         >
-                                          Stock: {product.stock}{' '}
-                                          {product.stock <= 5 &&
-                                          product.stock > 0
-                                            ? '(¡Últimas unidades!)'
-                                            : ''}
-                                        </Text>
-                                      </Col>
-                                    </Row>
-                                  </Col>
-                                </Row>
-                              )}
-                            </Card>
-                          </Col>
-                        );
+                                          <Text
+                                            style={{
+                                              color:
+                                                product.stock <= 5 &&
+                                                product.stock > 0
+                                                  ? '#ff4d4f'
+                                                  : undefined
+                                            }}
+                                          >
+                                            Stock: {product.stock}{' '}
+                                            {product.stock <= 5 &&
+                                            product.stock > 0
+                                              ? '(¡Últimas unidades!)'
+                                              : ''}
+                                          </Text>
+                                        </Col>
+                                      </Row>
+                                    </Col>
+                                  </Row>
+                                )}
+                              </Card>
+                            </Col>
+                          );
+                        } catch (error) {
+                          console.error('Error al renderizar producto:', error);
+                          // Retornar un elemento vacío en caso de error
+                          return null;
+                        }
                       })}
                     </Row>
                   )}
@@ -668,24 +776,57 @@ function CatalogContent() {
 
 // Componente principal con Suspense boundary
 export default function Catalog() {
+  // Usar un ref para controlar el desmontaje
+  const appMountedRef = useRef(true);
+
+  // Cleanup effect para gestionar el desmontaje
+  useEffect(() => {
+    return () => {
+      // Marcar como desmontado para evitar actualizaciones de estado
+      appMountedRef.current = false;
+
+      // Dar tiempo al evento loop para procesar cualquier operación pendiente
+      // antes de la siguiente renderización
+      setTimeout(() => {
+        // Noop, solo para ayudar a limpiar el event loop
+      }, 0);
+    };
+  }, []);
+
   return (
-    <Suspense
-      fallback={
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: 64,
-            width: '100%',
-            height: 'calc(100vh - 64px)'
-          }}
+    <App>
+      <ConfigProvider
+        button={{ autoInsertSpace: false }}
+        theme={{
+          components: {
+            Image: {
+              colorTextPlaceholder: '#f0f0f0'
+            },
+            Spin: {
+              colorPrimary: '#1890ff'
+            }
+          }
+        }}
+      >
+        <Suspense
+          fallback={
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                padding: 64,
+                width: '100%',
+                height: 'calc(100vh - 64px)'
+              }}
+            >
+              <Spin size="large" />
+            </div>
+          }
         >
-          <Spin size="large" />
-        </div>
-      }
-    >
-      <CatalogContent />
-    </Suspense>
+          <CatalogContent />
+        </Suspense>
+      </ConfigProvider>
+    </App>
   );
 }

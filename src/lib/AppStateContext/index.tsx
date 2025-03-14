@@ -25,7 +25,7 @@ type Category = {
   profit_margin?: number | null;
 };
 
-type Product = {
+export type Product = {
   id: number;
   name: string;
   price: number;
@@ -35,6 +35,14 @@ type Product = {
   category?: Category;
   flavor?: string;
 };
+
+// Tipo para opciones de ordenamiento
+type SortOption =
+  | 'default'
+  | 'price_asc'
+  | 'price_desc'
+  | 'name_asc'
+  | 'name_desc';
 
 interface DolarBlue {
   compra: number;
@@ -59,6 +67,7 @@ interface AppStateContextType {
   search: string;
   filter: string;
   onlyAvailable: boolean;
+  sortBy: SortOption;
 
   // Métodos
   setSearch: (value: string) => void;
@@ -66,6 +75,7 @@ interface AppStateContextType {
   handleSearchClear: () => void;
   handleCategoryChange: (value: string) => void;
   handleAvailabilityChange: (value: boolean) => void;
+  handleSortChange: (value: SortOption) => void;
   getPrices: (product: Product) => {
     usdPrice: number;
     arsPrice: number;
@@ -105,6 +115,10 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
   const categoryParam = searchParams.get('category') || 'all';
   const searchParam = searchParams.get('search') || '';
   const availableParam = searchParams.get('available');
+  const sortParam = (searchParams.get('sort') as SortOption) || 'default';
+
+  // Referencia para saber si el componente está montado
+  const isMounted = useRef(true);
 
   // Estados
   const [products, setProducts] = useState<Product[]>([]);
@@ -122,6 +136,7 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
   const [onlyAvailable, setOnlyAvailable] = useState(
     availableParam === null ? true : availableParam === 'true'
   );
+  const [sortBy, setSortBy] = useState<SortOption>(sortParam);
 
   // Debounce para búsqueda
   const debouncedSearch = useDebounce(search, 600);
@@ -141,7 +156,12 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
 
   // Métodos
   const updateUrlWithFilters = useCallback(
-    (params: { search?: string; category?: string; available?: boolean }) => {
+    (params: {
+      search?: string;
+      category?: string;
+      available?: boolean;
+      sort?: SortOption;
+    }) => {
       const newParams = new URLSearchParams(searchParams.toString());
 
       if (params.search !== undefined) {
@@ -164,6 +184,14 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
         newParams.set('available', params.available.toString());
       }
 
+      if (params.sort !== undefined) {
+        if (params.sort && params.sort !== 'default') {
+          newParams.set('sort', params.sort);
+        } else {
+          newParams.delete('sort');
+        }
+      }
+
       const newPathname = `/?${newParams.toString()}`;
       router.push(newPathname);
     },
@@ -172,40 +200,66 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
 
   // Método para refrescar datos
   const refreshData = useCallback(async () => {
+    if (!isMounted.current) return;
+
     try {
       setLoading(true);
 
       // Cargar categorías
       const catResponse = await fetch('/api/categories');
-      if (catResponse.ok) {
+      if (catResponse.ok && isMounted.current) {
         const catData = await catResponse.json();
-        setCategories(catData);
+        setCategories(catData || []);
+      } else {
+        console.error(
+          'Respuesta no OK al cargar categorías:',
+          catResponse.status
+        );
       }
 
       // Cargar productos
+      const queryParams = new URLSearchParams();
+
+      if (searchParam) {
+        queryParams.set('search', searchParam);
+      }
+
+      queryParams.set('filter', filter);
+
       const prodResponse = await fetch(
-        `/api/products?${
-          searchParam ? 'search=' + encodeURIComponent(searchParam) + '&' : ''
-        }filter=${encodeURIComponent(filter)}`
+        `/api/products?${queryParams.toString()}`
       );
-      if (prodResponse.ok) {
+
+      if (prodResponse.ok && isMounted.current) {
         const prodData = await prodResponse.json();
-        setProducts(prodData);
+        setProducts(prodData || []);
+      } else {
+        console.error(
+          'Respuesta no OK al cargar productos:',
+          prodResponse.status
+        );
+        if (isMounted.current) {
+          setProducts([]);
+        }
       }
 
       // Cargar dólar blue
       const dolarResponse = await fetch('/api/dolar-blue');
-      if (dolarResponse.ok) {
+      if (dolarResponse.ok && isMounted.current) {
         const { data } = await dolarResponse.json();
         setDolarBlue(data);
       }
 
       // Resetear caché
-      priceCache.current = {};
+      if (isMounted.current) {
+        priceCache.current = {};
+      }
     } catch (error) {
       console.error('Error al refrescar datos:', error);
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
   }, [
     searchParam,
@@ -214,7 +268,8 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
     setProducts,
     setDolarBlue,
     setLoading,
-    priceCache
+    priceCache,
+    isMounted
   ]);
 
   // Detectar tamaño de pantalla
@@ -247,22 +302,40 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
 
   // Reset del caché cuando cambian dependencias
   useEffect(() => {
-    if (dolarBlue) {
-      priceCache.current = {};
+    if (!isMounted.current) return;
+
+    try {
+      if (dolarBlue) {
+        priceCache.current = {};
+      }
+    } catch (error) {
+      console.error('Error al resetear caché de precios:', error);
     }
   }, [dolarBlue, categories, defaultProfitMargin]);
 
   // Cargar categorías
   useEffect(() => {
     const fetchCategories = async () => {
+      if (!isMounted.current) return;
+
       try {
+        setLoading(true);
         const response = await fetch('/api/categories');
-        if (response.ok) {
+        if (response.ok && isMounted.current) {
           const data = await response.json();
-          setCategories(data);
+          setCategories(data || []);
+        } else {
+          console.error(
+            'Respuesta no OK al cargar categorías:',
+            response.status
+          );
         }
       } catch (error) {
         console.error('Error al cargar categorías:', error);
+      } finally {
+        if (isMounted.current) {
+          setLoading(false);
+        }
       }
     };
 
@@ -272,21 +345,41 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
   // Cargar productos
   useEffect(() => {
     const fetchProducts = async () => {
+      if (!isMounted.current) return;
+
       setLoading(true);
       try {
-        const response = await fetch(
-          `/api/products?${
-            searchParam ? 'search=' + encodeURIComponent(searchParam) + '&' : ''
-          }filter=${encodeURIComponent(categoryParam)}`
-        );
-        if (response.ok) {
+        const queryParams = new URLSearchParams();
+
+        if (searchParam) {
+          queryParams.set('search', searchParam);
+        }
+
+        queryParams.set('filter', categoryParam);
+
+        const response = await fetch(`/api/products?${queryParams.toString()}`);
+
+        if (response.ok && isMounted.current) {
           const data = await response.json();
-          setProducts(data);
+          setProducts(data || []);
+        } else {
+          console.error(
+            'Respuesta no OK al cargar productos:',
+            response.status
+          );
+          if (isMounted.current) {
+            setProducts([]);
+          }
         }
       } catch (error) {
         console.error('Error al cargar productos:', error);
+        if (isMounted.current) {
+          setProducts([]);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted.current) {
+          setLoading(false);
+        }
       }
     };
 
@@ -296,22 +389,30 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
   // Cargar dólar blue
   useEffect(() => {
     const fetchDolarBlue = async () => {
+      if (!isMounted.current) return;
+
       try {
         setLoadingDolar(true);
         const response = await fetch('/api/dolar-blue');
-        if (response.ok) {
+        if (response.ok && isMounted.current) {
           const { data } = await response.json();
           setDolarBlue(data);
         }
       } catch (error) {
         console.error('Error al cargar dólar blue:', error);
       } finally {
-        setLoadingDolar(false);
+        if (isMounted.current) {
+          setLoadingDolar(false);
+        }
       }
     };
 
     fetchDolarBlue();
-    const interval = setInterval(fetchDolarBlue, 1000 * 60 * 60); // Actualizar cada hora
+    const interval = setInterval(() => {
+      if (isMounted.current) {
+        fetchDolarBlue();
+      }
+    }, 1000 * 60 * 60); // Actualizar cada hora
 
     return () => clearInterval(interval);
   }, []);
@@ -331,81 +432,184 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
   }, [refreshData]);
 
   // Método para buscar
-  const handleSearchSubmit = () => {
+  const handleSearchSubmit = useCallback(() => {
+    if (!isMounted.current) return;
     updateUrlWithFilters({ search });
-  };
+  }, [search, updateUrlWithFilters]);
 
   // Método para limpiar búsqueda
-  const handleSearchClear = () => {
+  const handleSearchClear = useCallback(() => {
+    if (!isMounted.current) return;
     setSearch('');
     updateUrlWithFilters({ search: '' });
-  };
+  }, [updateUrlWithFilters]);
 
   // Método para cambiar categoría
-  const handleCategoryChange = (value: string) => {
-    setFilter(value);
-    updateUrlWithFilters({ category: value });
-  };
+  const handleCategoryChange = useCallback(
+    (value: string) => {
+      if (!isMounted.current) return;
+
+      try {
+        // Primero actualizamos el estado local
+        setFilter(value);
+
+        // Realizar una limpieza preventiva del caché durante cambios de categoría
+        // para garantizar precios frescos con la nueva categoría
+        priceCache.current = {};
+
+        // Usamos setTimeout para asegurar que la actualización de URL
+        // ocurra después de que React haya actualizado el DOM,
+        // evitando problemas de sincronización
+        setTimeout(() => {
+          if (isMounted.current) {
+            updateUrlWithFilters({ category: value });
+          }
+        }, 0);
+      } catch (error) {
+        console.error('Error al cambiar categoría:', error);
+      }
+    },
+    [updateUrlWithFilters]
+  );
 
   // Método para cambiar disponibilidad
-  const handleAvailabilityChange = (value: boolean) => {
-    setOnlyAvailable(value);
-    updateUrlWithFilters({ available: value });
-  };
+  const handleAvailabilityChange = useCallback(
+    (value: boolean) => {
+      if (!isMounted.current) return;
+      setOnlyAvailable(value);
+      updateUrlWithFilters({ available: value });
+    },
+    [updateUrlWithFilters]
+  );
+
+  // Método para cambiar ordenamiento
+  const handleSortChange = useCallback(
+    (value: SortOption) => {
+      if (!isMounted.current) return;
+
+      // Primero actualizamos el estado local
+      setSortBy(value);
+
+      // Usamos setTimeout para evitar problemas de sincronización
+      setTimeout(() => {
+        if (isMounted.current) {
+          updateUrlWithFilters({ sort: value });
+        }
+      }, 0);
+    },
+    [updateUrlWithFilters]
+  );
 
   // Método para obtener precios
   const getPrices = useCallback(
     ((product: Product) => {
-      // Usar caché si existe
-      if (priceCache.current[product.id]) {
-        return priceCache.current[product.id];
-      }
-
-      // Si no hay dólar o categorías, devolver valores predeterminados
-      if (!dolarBlue || !categories.length) {
+      // Verificación básica de producto
+      if (!product) {
+        console.warn(
+          'Se intentó obtener precios de un producto nulo o indefinido'
+        );
         return {
-          usdPrice: product.price,
-          arsPrice: product.price * 1000,
-          formattedUsd: formatUsdPrice(product.price),
-          formattedArs: formatArsPrice(product.price * 1000)
+          usdPrice: 0,
+          arsPrice: 0,
+          formattedUsd: formatUsdPrice(0),
+          formattedArs: formatArsPrice(0)
         };
       }
 
-      // Obtener margen de ganancia
-      let profitMargin = defaultProfitMargin;
-      if (
-        product.category &&
-        product.category.profit_margin !== null &&
-        product.category.profit_margin !== undefined
-      ) {
-        profitMargin = product.category.profit_margin;
-      } else {
-        const category = categories.find((c) => c.id === product.category_id);
-        if (
-          category &&
-          category.profit_margin !== null &&
-          category.profit_margin !== undefined
-        ) {
-          profitMargin = category.profit_margin;
+      try {
+        // Usar caché si existe
+        if (priceCache.current && priceCache.current[product.id]) {
+          return priceCache.current[product.id];
         }
+
+        // Asegurar que el precio base sea un número
+        const basePrice =
+          typeof product.price === 'number'
+            ? product.price
+            : typeof product.price === 'string'
+            ? parseFloat(product.price)
+            : 0;
+
+        // Si no hay dólar o categorías, usar cálculo simplificado
+        if (!dolarBlue || !categories.length) {
+          return {
+            usdPrice: basePrice,
+            arsPrice: basePrice * 1000,
+            formattedUsd: formatUsdPrice(basePrice),
+            formattedArs: formatArsPrice(basePrice * 1000)
+          };
+        }
+
+        // Obtener margen de ganancia
+        let profitMargin = defaultProfitMargin;
+
+        // Intentar obtener el margen de la categoría del producto
+        if (
+          product.category &&
+          product.category.profit_margin !== null &&
+          product.category.profit_margin !== undefined
+        ) {
+          profitMargin =
+            typeof product.category.profit_margin === 'number'
+              ? product.category.profit_margin
+              : parseFloat(String(product.category.profit_margin));
+        } else if (product.category_id) {
+          // Buscar la categoría si solo tenemos el ID
+          const category = categories.find((c) => c.id === product.category_id);
+          if (
+            category &&
+            category.profit_margin !== null &&
+            category.profit_margin !== undefined
+          ) {
+            profitMargin =
+              typeof category.profit_margin === 'number'
+                ? category.profit_margin
+                : parseFloat(String(category.profit_margin));
+          }
+        }
+
+        // Asegurar que el tipo de cambio sea un número
+        const exchangeRate =
+          typeof dolarBlue.venta === 'number'
+            ? dolarBlue.venta
+            : typeof dolarBlue.venta === 'string'
+            ? parseFloat(dolarBlue.venta)
+            : 1000;
+
+        // Calcular precios
+        const usdPrice = calculateUsdPrice(basePrice, profitMargin);
+        const arsPrice = calculateArsPrice(usdPrice, exchangeRate);
+
+        // Formatear precios
+        const result = {
+          usdPrice,
+          arsPrice,
+          formattedUsd: formatUsdPrice(usdPrice),
+          formattedArs: formatArsPrice(arsPrice)
+        };
+
+        // Guardar en caché
+        if (priceCache.current) {
+          priceCache.current[product.id] = result;
+        }
+
+        return result;
+      } catch (error) {
+        console.error(
+          'Error al calcular precios para producto:',
+          product.id,
+          error
+        );
+
+        // En caso de error, usar el precio base directamente
+        const fallbackPrice = product.price || 0;
+        return {
+          usdPrice: fallbackPrice,
+          arsPrice: fallbackPrice * 1000,
+          formattedUsd: formatUsdPrice(fallbackPrice),
+          formattedArs: formatArsPrice(fallbackPrice * 1000)
+        };
       }
-
-      // Calcular precios
-      const usdPrice = calculateUsdPrice(product.price, profitMargin);
-      const arsPrice = calculateArsPrice(usdPrice, dolarBlue.venta);
-
-      // Formatear precios
-      const result = {
-        usdPrice,
-        arsPrice,
-        formattedUsd: formatUsdPrice(usdPrice),
-        formattedArs: formatArsPrice(arsPrice)
-      };
-
-      // Guardar en caché
-      priceCache.current[product.id] = result;
-
-      return result;
     }) as (product: Product) => {
       usdPrice: number;
       arsPrice: number;
@@ -414,6 +618,157 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
     },
     [dolarBlue, categories, defaultProfitMargin]
   );
+
+  // Function to sort products by the selected criteria
+  const sortProducts = useCallback(
+    (productsToSort: Product[]) => {
+      if (!productsToSort || !productsToSort.length) {
+        return [];
+      }
+
+      try {
+        // Filtrar productos nulos o indefinidos para evitar errores
+        const validProducts = productsToSort.filter((p) => p != null);
+
+        // Si no hay productos válidos, devolver array vacío
+        if (!validProducts.length) {
+          return [];
+        }
+
+        // Clonar para no modificar el original
+        const sortedProducts = [...validProducts];
+
+        // Ordenar según criterio seleccionado
+        switch (sortBy) {
+          case 'price_asc':
+            return sortedProducts.sort((a, b) => {
+              try {
+                // Usamos getPrices de forma segura
+                const pricesA = getPrices(a);
+                const pricesB = getPrices(b);
+                return pricesA.arsPrice - pricesB.arsPrice;
+              } catch (e) {
+                console.error('Error comparando precios ASC:', e);
+                // Si hay error, comparar por precio base
+                return (a.price || 0) - (b.price || 0);
+              }
+            });
+
+          case 'price_desc':
+            return sortedProducts.sort((a, b) => {
+              try {
+                const pricesA = getPrices(a);
+                const pricesB = getPrices(b);
+                return pricesB.arsPrice - pricesA.arsPrice;
+              } catch (e) {
+                console.error('Error comparando precios DESC:', e);
+                return (b.price || 0) - (a.price || 0);
+              }
+            });
+
+          case 'name_asc':
+            return sortedProducts.sort((a, b) => {
+              try {
+                return (a.name || '').localeCompare(b.name || '');
+              } catch (e) {
+                console.error('Error comparando nombres ASC:', e);
+                return 0;
+              }
+            });
+
+          case 'name_desc':
+            return sortedProducts.sort((a, b) => {
+              try {
+                return (b.name || '').localeCompare(a.name || '');
+              } catch (e) {
+                console.error('Error comparando nombres DESC:', e);
+                return 0;
+              }
+            });
+
+          default:
+            return sortedProducts;
+        }
+      } catch (error) {
+        console.error('Error en sortProducts:', error);
+        return productsToSort; // Devolver productos originales en caso de error
+      }
+    },
+    [sortBy, getPrices]
+  );
+
+  // Filtrar productos por disponibilidad y ordenarlos
+  useEffect(() => {
+    if (!isMounted.current) return;
+
+    // Creamos una función que se ejecutará de forma segura
+    const updateFilteredProducts = () => {
+      if (!isMounted.current) return;
+
+      try {
+        let filtered = [...products];
+
+        // Asegurarse de que todos los productos son válidos
+        filtered = filtered.filter(
+          (product) => product !== null && product !== undefined
+        );
+
+        // Filtrar por disponibilidad
+        if (onlyAvailable) {
+          filtered = filtered.filter((product) => product.stock > 0);
+        }
+
+        // Aplicar ordenamiento
+        try {
+          filtered = sortProducts(filtered);
+        } catch (error) {
+          console.error('Error al ordenar productos:', error);
+        }
+
+        if (isMounted.current) {
+          setFilteredProducts(filtered);
+        }
+      } catch (error) {
+        console.error('Error al filtrar productos:', error);
+        // En caso de error, al menos asegurar que se muestra algo
+        if (isMounted.current && products.length > 0) {
+          setFilteredProducts(products);
+        }
+      }
+    };
+
+    // Usamos un pequeño timeout para asegurar que este efecto
+    // no colisione con otras actualizaciones de estado
+    const timerId = setTimeout(updateFilteredProducts, 0);
+
+    return () => {
+      clearTimeout(timerId);
+    };
+  }, [products, onlyAvailable, sortBy, sortProducts]);
+
+  // Actualizar URL cuando cambie el valor de ordenamiento
+  useEffect(() => {
+    if (!isMounted.current) return;
+
+    if (sortBy !== sortParam) {
+      const timerId = setTimeout(() => {
+        if (isMounted.current) {
+          updateUrlWithFilters({ sort: sortBy });
+        }
+      }, 0);
+
+      return () => {
+        clearTimeout(timerId);
+      };
+    }
+  }, [sortBy, sortParam, updateUrlWithFilters]);
+
+  // Asegurar que no se actualice el estado después de desmontado
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   const contextValue: AppStateContextType = {
     // Estados
@@ -430,6 +785,7 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
     search,
     filter,
     onlyAvailable,
+    sortBy,
 
     // Métodos
     setSearch,
@@ -437,6 +793,7 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
     handleSearchClear,
     handleCategoryChange,
     handleAvailabilityChange,
+    handleSortChange,
     getPrices,
     refreshData
   };
