@@ -24,19 +24,12 @@ const AUTH_EXPIRY_KEY = 'simplecommerce_auth_expiry';
 // Función auxiliar para verificar entorno del servidor
 function ensureServer() {
   if (typeof window !== 'undefined') {
-    throw new Error(
-      'SEGURIDAD: Esta función solo debe llamarse desde el servidor'
-    );
+    throw new Error('SEGURIDAD: Esta función solo debe llamarse desde el servidor');
   }
 }
 
 // Función auxiliar para guardar tokens en localStorage
-function saveAuthData(
-  token: string,
-  refreshToken: string,
-  expiresIn: number,
-  user: User
-) {
+function saveAuthData(token: string, refreshToken: string, expiresIn: number, user: User) {
   if (typeof window === 'undefined') return;
 
   try {
@@ -197,19 +190,14 @@ async function getUserFromSession(session: {
     ) {
       // Type guard para garantizar que provider es de tipo string
       const providerRole =
-        typeof user.app_metadata.provider === 'string'
-          ? user.app_metadata.provider
-          : null;
+        typeof user.app_metadata.provider === 'string' ? user.app_metadata.provider : null;
 
       // Verificar que sea un rol válido
-      if (
-        providerRole &&
-        ['admin', 'vendedor', 'anonimo'].includes(providerRole)
-      ) {
+      if (providerRole && ['admin', 'vendedor', 'anonimo'].includes(providerRole)) {
         return {
           id: user.id,
           email: user.email || '',
-          role: providerRole as UserRole
+          role: providerRole as UserRole,
         };
       }
     }
@@ -218,9 +206,9 @@ async function getUserFromSession(session: {
     const response = await fetch('/api/auth/get-user-role', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ userId: user.id })
+      body: JSON.stringify({ userId: user.id }),
     });
 
     if (response.ok) {
@@ -230,7 +218,7 @@ async function getUserFromSession(session: {
         return {
           id: user.id,
           email: user.email || '',
-          role: data.role as UserRole
+          role: data.role as UserRole,
         };
       }
     } else {
@@ -242,7 +230,7 @@ async function getUserFromSession(session: {
       return {
         id: user.id,
         email: user.email,
-        role: 'admin'
+        role: 'admin',
       };
     }
 
@@ -250,7 +238,7 @@ async function getUserFromSession(session: {
     return {
       id: user.id,
       email: user.email || '',
-      role: 'anonimo'
+      role: 'anonimo',
     };
   } catch {
     // Si hay error al obtener la sesión, limpiar datos locales
@@ -265,7 +253,7 @@ async function getUserFromSession(session: {
 export async function signIn(email: string, password: string) {
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
-    password
+    password,
   });
 
   if (error) {
@@ -328,7 +316,7 @@ export async function getCurrentUser(): Promise<User | null> {
     try {
       // Añadir timeout para evitar bloqueo indefinido
       const refreshPromise = refreshToken();
-      const timeoutPromise = new Promise<boolean>((resolve) => {
+      const timeoutPromise = new Promise<boolean>(resolve => {
         setTimeout(() => {
           console.error('[Auth] Timeout al refrescar token');
           resolve(false);
@@ -359,7 +347,7 @@ export async function getCurrentUser(): Promise<User | null> {
   try {
     // Añadir timeout para la obtención de sesión
     const sessionPromise = supabase.auth.getSession();
-    const timeoutPromise = new Promise((resolve) => {
+    const timeoutPromise = new Promise(resolve => {
       setTimeout(() => {
         console.error('[Auth] Timeout al obtener sesión');
         resolve({ data: { session: null } });
@@ -429,10 +417,7 @@ export async function getCurrentUser(): Promise<User | null> {
     };
 
     if (!isValidSession(session)) {
-      console.error(
-        '[Auth] Sesión inválida, faltan propiedades requeridas:',
-        session
-      );
+      console.error('[Auth] Sesión inválida, faltan propiedades requeridas:', session);
       clearAuthData();
       return null;
     }
@@ -443,12 +428,7 @@ export async function getCurrentUser(): Promise<User | null> {
     if (user) {
       console.log('[Auth] Usuario recuperado correctamente');
       // Actualizar almacenamiento local con los datos nuevos
-      saveAuthData(
-        session.access_token,
-        session.refresh_token,
-        session.expires_in || 3600,
-        user
-      );
+      saveAuthData(session.access_token, session.refresh_token, session.expires_in || 3600, user);
       return user;
     }
 
@@ -479,7 +459,7 @@ export async function createUser(
     email,
     password,
     email_confirm: true,
-    app_metadata: { provider: role }
+    app_metadata: { provider: role },
   });
 
   if (error) {
@@ -490,10 +470,7 @@ export async function createUser(
 }
 
 // Función para actualizar el rol de un usuario (solo para admin)
-export async function updateUserRole(
-  userId: string,
-  role: UserRole
-): Promise<boolean> {
+export async function updateUserRole(userId: string, role: UserRole): Promise<boolean> {
   ensureServer();
 
   try {
@@ -502,7 +479,7 @@ export async function updateUserRole(
 
     // Actualizar el rol en app_metadata
     const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-      app_metadata: { provider: role }
+      app_metadata: { provider: role },
     });
 
     if (error) {
@@ -512,8 +489,7 @@ export async function updateUserRole(
 
     return true;
   } catch (err: Error | unknown) {
-    const errorMessage =
-      err instanceof Error ? err.message : 'Error desconocido';
+    const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
     throw new Error(`Error al actualizar rol: ${errorMessage}`);
   }
 }
@@ -552,10 +528,7 @@ export async function getAllUsers(): Promise<User[]> {
 
       // Verificar app_metadata
       if (user.app_metadata && typeof user.app_metadata === 'object') {
-        if (
-          'provider' in user.app_metadata &&
-          typeof user.app_metadata.provider === 'string'
-        ) {
+        if ('provider' in user.app_metadata && typeof user.app_metadata.provider === 'string') {
           const providerRole = user.app_metadata.provider;
           if (['admin', 'vendedor', 'anonimo'].includes(providerRole)) {
             role = providerRole as UserRole;
@@ -571,10 +544,7 @@ export async function getAllUsers(): Promise<User[]> {
 
       if (userWithRawMetadata.raw_app_meta_data) {
         const rawAppMetadata = userWithRawMetadata.raw_app_meta_data;
-        if (
-          'provider' in rawAppMetadata &&
-          typeof rawAppMetadata.provider === 'string'
-        ) {
+        if ('provider' in rawAppMetadata && typeof rawAppMetadata.provider === 'string') {
           const providerRole = rawAppMetadata.provider;
           if (['admin', 'vendedor', 'anonimo'].includes(providerRole)) {
             role = providerRole as UserRole;
@@ -585,14 +555,13 @@ export async function getAllUsers(): Promise<User[]> {
       return {
         id: user.id,
         email: user.email || '',
-        role: role
+        role: role,
       };
     });
 
     return usersWithRoles;
   } catch (err: Error | unknown) {
-    const errorMessage =
-      err instanceof Error ? err.message : 'Error desconocido';
+    const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
     throw new Error(`Error al obtener usuarios: ${errorMessage}`);
   }
 }

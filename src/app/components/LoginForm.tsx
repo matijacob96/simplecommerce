@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Form, Input, Button, Card, message, Typography } from 'antd';
 import { useAuth } from '@/lib/AuthContext';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
@@ -34,47 +34,27 @@ export function LoginForm({ onClose }: LoginFormProps) {
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <Title level={3}>Iniciar Sesión</Title>
         </div>
-        
-        <Form
-          form={form}
-          name="login"
-          layout="vertical"
-          onFinish={onFinish}
-          autoComplete="off"
-        >
+
+        <Form form={form} name="login" layout="vertical" onFinish={onFinish} autoComplete="off">
           <Form.Item
             name="email"
             rules={[
               { required: true, message: 'Por favor ingresa tu correo electrónico' },
-              { type: 'email', message: 'Por favor ingresa un correo válido' }
+              { type: 'email', message: 'Por favor ingresa un correo válido' },
             ]}
           >
-            <Input 
-              prefix={<UserOutlined />} 
-              placeholder="Correo electrónico" 
-              size="large"
-            />
+            <Input prefix={<UserOutlined />} placeholder="Correo electrónico" size="large" />
           </Form.Item>
 
           <Form.Item
             name="password"
             rules={[{ required: true, message: 'Por favor ingresa tu contraseña' }]}
           >
-            <Input.Password 
-              prefix={<LockOutlined />} 
-              placeholder="Contraseña" 
-              size="large"
-            />
+            <Input.Password prefix={<LockOutlined />} placeholder="Contraseña" size="large" />
           </Form.Item>
 
           <Form.Item>
-            <Button 
-              type="primary" 
-              htmlType="submit" 
-              loading={isLoading} 
-              block 
-              size="large"
-            >
+            <Button type="primary" htmlType="submit" loading={isLoading} block size="large">
               Iniciar Sesión
             </Button>
           </Form.Item>
@@ -82,4 +62,4 @@ export function LoginForm({ onClose }: LoginFormProps) {
       </Card>
     </>
   );
-} 
+}

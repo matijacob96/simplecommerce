@@ -1,14 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Button, 
-  Table, 
-  Card, 
-  Typography, 
-  Space, 
-  message, 
-  Popconfirm, 
+import React, { useState, useEffect, useRef as _useRef } from 'react';
+import {
+  Button,
+  Table,
+  Card,
+  Typography,
+  Space,
+  message,
   Modal,
   Form,
   Input,
@@ -16,18 +15,20 @@ import {
   Tooltip,
   Row,
   Col,
-  Divider
+  Popconfirm as _Popconfirm,
+  Divider as _Divider,
 } from 'antd';
-import { 
-  PlusOutlined, 
-  DeleteOutlined, 
-  EditOutlined, 
+import {
+  PlusOutlined,
+  DeleteOutlined,
+  EditOutlined,
   ExclamationCircleOutlined,
   WhatsAppOutlined,
   InstagramOutlined,
-  FacebookOutlined
+  FacebookOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import { getErrorMessage } from '@/types/error-types';
 
 const { Title } = Typography;
 const { confirm } = Modal;
@@ -82,7 +83,9 @@ export default function CustomersPage() {
 
       if (!response.ok) {
         if (response.status === 400 && data.salesCount) {
-          message.error(`No se puede eliminar el cliente porque tiene ${data.salesCount} ventas asociadas`);
+          message.error(
+            `No se puede eliminar el cliente porque tiene ${data.salesCount} ventas asociadas`
+          );
         } else {
           message.error(data.error || 'Error al eliminar el cliente');
         }
@@ -91,9 +94,9 @@ export default function CustomersPage() {
 
       message.success('Cliente eliminado correctamente');
       fetchCustomers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error:', error);
-      message.error(error.message || 'Error al eliminar el cliente');
+      message.error(getErrorMessage(error) || 'Error al eliminar el cliente');
     }
   };
 
@@ -123,7 +126,9 @@ export default function CustomersPage() {
         whatsapp: customer.whatsapp,
         instagram: customer.instagram,
         facebook: customer.facebook,
-        first_purchase_date: customer.first_purchase_date ? dayjs(customer.first_purchase_date) : null,
+        first_purchase_date: customer.first_purchase_date
+          ? dayjs(customer.first_purchase_date)
+          : null,
       });
     }
   };
@@ -142,7 +147,9 @@ export default function CustomersPage() {
         whatsapp: whatsapp || null,
         instagram: instagram || null,
         facebook: facebook || null,
-        first_purchase_date: first_purchase_date ? first_purchase_date.toISOString() : new Date().toISOString(),
+        first_purchase_date: first_purchase_date
+          ? first_purchase_date.toISOString()
+          : new Date().toISOString(),
       };
 
       let response;
@@ -173,9 +180,9 @@ export default function CustomersPage() {
       message.success(`Cliente ${isEditing ? 'actualizado' : 'creado'} correctamente`);
       setIsModalOpen(false);
       fetchCustomers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error:', error);
-      message.error(error.message || 'Error al guardar el cliente');
+      message.error(getErrorMessage(error) || 'Error al guardar el cliente');
     }
   };
 
@@ -185,7 +192,7 @@ export default function CustomersPage() {
       if (!dateString || isNaN(Date.parse(dateString))) {
         return 'Fecha no disponible';
       }
-      
+
       const date = new Date(dateString);
       return new Intl.DateTimeFormat('es-ES', {
         year: 'numeric',
@@ -204,21 +211,33 @@ export default function CustomersPage() {
       <Space>
         {customer.whatsapp && (
           <Tooltip title={`WhatsApp: ${customer.whatsapp}`}>
-            <a href={`https://wa.me/${customer.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">
+            <a
+              href={`https://wa.me/${customer.whatsapp.replace(/\D/g, '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <WhatsAppOutlined style={{ fontSize: '18px', color: '#25D366' }} />
             </a>
           </Tooltip>
         )}
         {customer.instagram && (
           <Tooltip title={`Instagram: ${customer.instagram}`}>
-            <a href={`https://instagram.com/${customer.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer">
+            <a
+              href={`https://instagram.com/${customer.instagram.replace('@', '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <InstagramOutlined style={{ fontSize: '18px', color: '#E1306C' }} />
             </a>
           </Tooltip>
         )}
         {customer.facebook && (
           <Tooltip title={`Facebook: ${customer.facebook}`}>
-            <a href={`https://facebook.com/${customer.facebook}`} target="_blank" rel="noopener noreferrer">
+            <a
+              href={`https://facebook.com/${customer.facebook}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <FacebookOutlined style={{ fontSize: '18px', color: '#1877F2' }} />
             </a>
           </Tooltip>
@@ -258,14 +277,14 @@ export default function CustomersPage() {
       key: 'actions',
       render: (customer: Customer) => (
         <Space size="small">
-          <Button 
-            icon={<EditOutlined />} 
+          <Button
+            icon={<EditOutlined />}
             type="primary"
             onClick={() => showModal(true, customer)}
             size="small"
           />
-          <Button 
-            icon={<DeleteOutlined />} 
+          <Button
+            icon={<DeleteOutlined />}
             danger
             onClick={() => showDeleteConfirm(customer.id)}
             size="small"
@@ -277,19 +296,23 @@ export default function CustomersPage() {
 
   return (
     <div style={{ padding: 16 }}>
-      <Card title={<Row justify="space-between" align="middle">
-          <Col>
-            <Title style={{ margin: 0 }} level={3}>Clientes</Title>
-          </Col>
-          <Col>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal(false, null)}>
-              Nuevo Cliente
-            </Button>
-          </Col>
-        </Row>}>
-        
-
-        <Table 
+      <Card
+        title={
+          <Row justify="space-between" align="middle">
+            <Col>
+              <Title style={{ margin: 0 }} level={3}>
+                Clientes
+              </Title>
+            </Col>
+            <Col>
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal(false, null)}>
+                Nuevo Cliente
+              </Button>
+            </Col>
+          </Row>
+        }
+      >
+        <Table
           columns={columns}
           dataSource={customers}
           rowKey="id"
@@ -320,35 +343,27 @@ export default function CustomersPage() {
             <Input placeholder="Nombre del cliente" />
           </Form.Item>
 
-          <Form.Item
-            name="whatsapp"
-            label="WhatsApp"
-          >
+          <Form.Item name="whatsapp" label="WhatsApp">
             <Input placeholder="Número de WhatsApp" prefix={<WhatsAppOutlined />} />
           </Form.Item>
 
-          <Form.Item
-            name="instagram"
-            label="Instagram"
-          >
+          <Form.Item name="instagram" label="Instagram">
             <Input placeholder="Usuario de Instagram" prefix={<InstagramOutlined />} />
           </Form.Item>
 
-          <Form.Item
-            name="facebook"
-            label="Facebook"
-          >
+          <Form.Item name="facebook" label="Facebook">
             <Input placeholder="Usuario o URL de Facebook" prefix={<FacebookOutlined />} />
           </Form.Item>
 
-          <Form.Item
-            name="first_purchase_date"
-            label="Fecha de Primera Compra"
-          >
-            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" placeholder="Selecciona una fecha" />
+          <Form.Item name="first_purchase_date" label="Fecha de Primera Compra">
+            <DatePicker
+              style={{ width: '100%' }}
+              format="DD/MM/YYYY"
+              placeholder="Selecciona una fecha"
+            />
           </Form.Item>
         </Form>
       </Modal>
     </div>
   );
-} 
+}

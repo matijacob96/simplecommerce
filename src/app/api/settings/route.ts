@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
 export async function GET() {
   try {
     // Obtener la primera configuración o crear una por defecto si no existe
-    let settings = await prisma.setting.findFirst();
-    
+    const settings = await prisma.setting.findFirst();
+
     if (!settings) {
       const defaultSettings = await prisma.setting.create({
         data: {
@@ -17,21 +17,18 @@ export async function GET() {
       // Añadimos el campo nuevo para la respuesta
       return NextResponse.json({
         ...defaultSettings,
-        default_profit_margin: defaultSettings.profit_margin
+        default_profit_margin: defaultSettings.profit_margin,
       });
     }
-    
+
     // Añadimos el campo nuevo para la respuesta
     return NextResponse.json({
       ...settings,
-      default_profit_margin: settings.profit_margin
+      default_profit_margin: settings.profit_margin,
     });
   } catch (error) {
-    console.error("Error fetching settings:", error);
-    return NextResponse.json(
-      { error: "Error al obtener la configuración" },
-      { status: 500 }
-    );
+    console.error('Error fetching settings:', error);
+    return NextResponse.json({ error: 'Error al obtener la configuración' }, { status: 500 });
   }
 }
 
@@ -46,14 +43,14 @@ export async function PUT(request: Request) {
     // Validar los datos
     if (marginValue === undefined || isNaN(marginValue) || marginValue < 0 || marginValue > 1) {
       return NextResponse.json(
-        { error: "El margen de beneficio debe ser un número entre 0 y 1" },
+        { error: 'El margen de beneficio debe ser un número entre 0 y 1' },
         { status: 400 }
       );
     }
 
     // Actualizar o crear la configuración
     const settings = await prisma.setting.findFirst();
-    
+
     if (settings) {
       const updatedSettings = await prisma.setting.update({
         where: { id: settings.id },
@@ -62,7 +59,7 @@ export async function PUT(request: Request) {
       // Añadimos el campo nuevo para la respuesta
       return NextResponse.json({
         ...updatedSettings,
-        default_profit_margin: updatedSettings.profit_margin
+        default_profit_margin: updatedSettings.profit_margin,
       });
     } else {
       const newSettings = await prisma.setting.create({
@@ -71,14 +68,11 @@ export async function PUT(request: Request) {
       // Añadimos el campo nuevo para la respuesta
       return NextResponse.json({
         ...newSettings,
-        default_profit_margin: newSettings.profit_margin
+        default_profit_margin: newSettings.profit_margin,
       });
     }
   } catch (error) {
-    console.error("Error updating settings:", error);
-    return NextResponse.json(
-      { error: "Error al actualizar la configuración" },
-      { status: 500 }
-    );
+    console.error('Error updating settings:', error);
+    return NextResponse.json({ error: 'Error al actualizar la configuración' }, { status: 500 });
   }
 }

@@ -1,4 +1,4 @@
-"use client"
+'use client';
 
 import React, { useEffect, createContext, useContext, useState } from 'react';
 import { message, notification, App } from 'antd';
@@ -51,22 +51,30 @@ export const toaster = {
         description: description,
         placement: DEFAULT_PLACEMENT,
         duration: duration,
-        type: (status === 'error' ? 'error' : 
-              status === 'warning' ? 'warning' :
-              status === 'success' ? 'success' : 'info') as NotificationType,
-        className: `ant-notification-${status}`
+        type: (status === 'error'
+          ? 'error'
+          : status === 'warning'
+            ? 'warning'
+            : status === 'success'
+              ? 'success'
+              : 'info') as NotificationType,
+        className: `ant-notification-${status}`,
       });
-    } catch (error) {
+    } catch (_error) {
       // Fallback al método estático para usar fuera de contexto
       notification.open({
         message: title,
         description: description,
         placement: DEFAULT_PLACEMENT,
         duration: duration,
-        type: (status === 'error' ? 'error' : 
-              status === 'warning' ? 'warning' :
-              status === 'success' ? 'success' : 'info') as NotificationType,
-        className: `ant-notification-${status}`
+        type: (status === 'error'
+          ? 'error'
+          : status === 'warning'
+            ? 'warning'
+            : status === 'success'
+              ? 'success'
+              : 'info') as NotificationType,
+        className: `ant-notification-${status}`,
       });
     }
   },
@@ -82,9 +90,9 @@ export const toaster = {
         duration: duration,
         key,
         icon: <LoadingOutlined style={{ color: '#1677ff' }} />,
-        className: 'ant-notification-loading'
+        className: 'ant-notification-loading',
       });
-    } catch (error) {
+    } catch (_error) {
       // Fallback al método estático
       notification.open({
         message: title,
@@ -93,13 +101,16 @@ export const toaster = {
         duration: duration,
         key,
         icon: <LoadingOutlined style={{ color: '#1677ff' }} />,
-        className: 'ant-notification-loading'
+        className: 'ant-notification-loading',
       });
     }
     return key;
   },
   // Método para actualizar o cerrar un toast de carga
-  update: (key: string, { title, description, status = 'info', duration = DEFAULT_DURATION }: ToastOptions) => {
+  update: (
+    key: string,
+    { title, description, status = 'info', duration = DEFAULT_DURATION }: ToastOptions
+  ) => {
     try {
       const { notificationApi } = useToasterContext();
       notificationApi.open({
@@ -108,12 +119,16 @@ export const toaster = {
         placement: DEFAULT_PLACEMENT,
         duration: duration,
         key,
-        type: (status === 'error' ? 'error' : 
-              status === 'warning' ? 'warning' :
-              status === 'success' ? 'success' : 'info') as NotificationType,
-        className: `ant-notification-${status}`
+        type: (status === 'error'
+          ? 'error'
+          : status === 'warning'
+            ? 'warning'
+            : status === 'success'
+              ? 'success'
+              : 'info') as NotificationType,
+        className: `ant-notification-${status}`,
       });
-    } catch (error) {
+    } catch (_error) {
       // Fallback al método estático
       notification.open({
         message: title,
@@ -121,10 +136,14 @@ export const toaster = {
         placement: DEFAULT_PLACEMENT,
         duration: duration,
         key,
-        type: (status === 'error' ? 'error' : 
-              status === 'warning' ? 'warning' :
-              status === 'success' ? 'success' : 'info') as NotificationType,
-        className: `ant-notification-${status}`
+        type: (status === 'error'
+          ? 'error'
+          : status === 'warning'
+            ? 'warning'
+            : status === 'success'
+              ? 'success'
+              : 'info') as NotificationType,
+        className: `ant-notification-${status}`,
       });
     }
   },
@@ -133,7 +152,7 @@ export const toaster = {
     try {
       const { notificationApi } = useToasterContext();
       notificationApi.destroy(key);
-    } catch (error) {
+    } catch (_error) {
       // Fallback al método estático
       notification.destroy(key);
     }
@@ -143,7 +162,7 @@ export const toaster = {
     try {
       const { notificationApi } = useToasterContext();
       notificationApi.destroy();
-    } catch (error) {
+    } catch (_error) {
       // Fallback al método estático
       notification.destroy();
     }
@@ -153,7 +172,7 @@ export const toaster = {
     try {
       const { messageApi } = useToasterContext();
       messageApi.success(title);
-    } catch (error) {
+    } catch (_error) {
       // Fallback al método estático
       message.success(title);
     }
@@ -163,7 +182,7 @@ export const toaster = {
     try {
       const { messageApi } = useToasterContext();
       messageApi.error(title);
-    } catch (error) {
+    } catch (_error) {
       // Fallback al método estático
       message.error(title);
     }
@@ -173,7 +192,7 @@ export const toaster = {
     try {
       const { messageApi } = useToasterContext();
       messageApi.warning(title);
-    } catch (error) {
+    } catch (_error) {
       // Fallback al método estático
       message.warning(title);
     }
@@ -183,20 +202,20 @@ export const toaster = {
     try {
       const { messageApi } = useToasterContext();
       messageApi.info(title);
-    } catch (error) {
+    } catch (_error) {
       // Fallback al método estático
       message.info(title);
     }
-  }
+  },
 };
 
 // Proveedor de contexto para el toaster
 export const ToasterProvider = ({ children }: { children: React.ReactNode }) => {
   const [messageApi, messageContextHolder] = message.useMessage();
   const [notificationApi, notificationContextHolder] = notification.useNotification();
-  
+
   const [initialized, setInitialized] = useState(false);
-  
+
   // Asegurarnos de que los APIs se inicialicen solo del lado del cliente
   useEffect(() => {
     setInitialized(true);
@@ -219,9 +238,7 @@ export const ToasterProvider = ({ children }: { children: React.ReactNode }) => 
 export const Toaster: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   return (
     <ToasterProvider>
-      <App>
-        {children}
-      </App>
+      <App>{children}</App>
     </ToasterProvider>
   );
 };

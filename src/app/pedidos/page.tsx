@@ -11,7 +11,7 @@ import {
   Typography,
   Upload,
   Image,
-  message
+  message,
 } from 'antd';
 import {
   DeleteOutlined,
@@ -19,7 +19,7 @@ import {
   SendOutlined,
   UploadOutlined,
   LinkOutlined,
-  CloseCircleOutlined
+  CloseCircleOutlined,
 } from '@ant-design/icons';
 import { useEffect, useState, createRef, useMemo, useCallback } from 'react';
 import { toaster } from '../components/ui/toaster';
@@ -92,16 +92,14 @@ const useStyle = createStyles(({ css }) => {
           }
         }
       }
-    `
+    `,
   };
 });
 
 export default function PedidosPage() {
   const { styles } = useStyle();
   // Utilizamos un valor inicial para productos que incluya un ID único
-  const initialProductId = `product-${Date.now()}-${Math.random()
-    .toString(36)
-    .substring(2, 9)}`;
+  const initialProductId = `product-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   const [products, setProducts] = useState<OrderProduct[]>([
     {
       quantity: 0,
@@ -111,8 +109,8 @@ export default function PedidosPage() {
       imageUrl: '',
       categoryId: null,
       categoryName: '',
-      id: initialProductId
-    }
+      id: initialProductId,
+    },
   ]);
   const [shippingCost, setShippingCost] = useState(0);
   const [proratedCosts, setProratedCosts] = useState<ProratedCost[]>([]);
@@ -137,14 +135,12 @@ export default function PedidosPage() {
       if (!searchText[index]) return [];
 
       return existingProducts
-        .filter((product) =>
-          product.name
-            .toLowerCase()
-            .includes(searchText[index]?.toLowerCase() || '')
+        .filter(product =>
+          product.name.toLowerCase().includes(searchText[index]?.toLowerCase() || '')
         )
-        .map((product) => ({
+        .map(product => ({
           value: product.name,
-          label: `${product.name} ($${product.price})`
+          label: `${product.name} ($${product.price})`,
         }));
     });
   }, [existingProducts, searchText, products]);
@@ -164,10 +160,7 @@ export default function PedidosPage() {
   );
 
   // Creamos la versión debounced de la función
-  const debouncedSearchWithDelay = useMemo(
-    () => debounce(debouncedSearch, 300),
-    [debouncedSearch]
-  );
+  const debouncedSearchWithDelay = useMemo(() => debounce(debouncedSearch, 300), [debouncedSearch]);
 
   // Limpiamos el debounce cuando el componente se desmonte
   useEffect(() => {
@@ -192,9 +185,7 @@ export default function PedidosPage() {
 
   useEffect(() => {
     // Crear referencias para los campos de cantidad
-    const refs: QuantityRef[] = products.map(() =>
-      createRef<HTMLInputElement | null>()
-    );
+    const refs: QuantityRef[] = products.map(() => createRef<HTMLInputElement | null>());
     setQuantityRefs(refs);
 
     // Ajustar los arrays de estado según la cantidad de productos
@@ -210,14 +201,10 @@ export default function PedidosPage() {
     while (newImageUrls.length < products.length) newImageUrls.push(null);
 
     // Recortar los arrays si son más largos que products
-    if (newSearchText.length > products.length)
-      newSearchText.length = products.length;
-    if (newLoading.length > products.length)
-      newLoading.length = products.length;
-    if (newFileList.length > products.length)
-      newFileList.length = products.length;
-    if (newImageUrls.length > products.length)
-      newImageUrls.length = products.length;
+    if (newSearchText.length > products.length) newSearchText.length = products.length;
+    if (newLoading.length > products.length) newLoading.length = products.length;
+    if (newFileList.length > products.length) newFileList.length = products.length;
+    if (newImageUrls.length > products.length) newImageUrls.length = products.length;
 
     // Solo actualizamos los estados si realmente hay cambios
     if (JSON.stringify(newSearchText) !== JSON.stringify(searchText)) {
@@ -243,11 +230,7 @@ export default function PedidosPage() {
     if (products.length > 0) {
       // Enfocar el último campo de cantidad cuando se agrega un producto nuevo
       const lastIndex = products.length - 1;
-      if (
-        lastIndex >= 0 &&
-        quantityRefs[lastIndex] &&
-        quantityRefs[lastIndex].current
-      ) {
+      if (lastIndex >= 0 && quantityRefs[lastIndex] && quantityRefs[lastIndex].current) {
         quantityRefs[lastIndex].current?.focus();
       }
     }
@@ -270,8 +253,7 @@ export default function PedidosPage() {
         setExistingProducts(productsData);
       } catch (error) {
         toaster.error(
-          'Error al cargar datos: ' +
-            (error instanceof Error ? error.message : 'Error desconocido')
+          'Error al cargar datos: ' + (error instanceof Error ? error.message : 'Error desconocido')
         );
       }
     };
@@ -282,9 +264,7 @@ export default function PedidosPage() {
 
   const handleSelectProduct = (productName: string, index: number) => {
     // Buscar el producto seleccionado
-    const selectedProduct = existingProducts.find(
-      (p) => p.name === productName
-    );
+    const selectedProduct = existingProducts.find(p => p.name === productName);
 
     if (selectedProduct) {
       // Actualizar el producto con los datos del producto seleccionado
@@ -296,9 +276,7 @@ export default function PedidosPage() {
 
         // Obtener la categoría si existe
         if (selectedProduct.category_id) {
-          const productCategory = categories.find(
-            (c) => c.id === selectedProduct.category_id
-          );
+          const productCategory = categories.find(c => c.id === selectedProduct.category_id);
           if (productCategory && newProducts[index]) {
             newProducts[index].categoryId = productCategory.id;
             newProducts[index].categoryName = productCategory.name;
@@ -317,7 +295,7 @@ export default function PedidosPage() {
 
   const handleCategoryChange = (value: string, index: number) => {
     // Buscar la categoría seleccionada
-    const selectedCategory = categories.find((c) => c.name === value);
+    const selectedCategory = categories.find(c => c.name === value);
 
     // Actualizar el producto con la categoría seleccionada
     const newProducts = [...products];
@@ -340,9 +318,7 @@ export default function PedidosPage() {
 
   const addProduct = () => {
     // Generamos un ID único para el nuevo producto
-    const newId = `product-${Date.now()}-${Math.random()
-      .toString(36)
-      .substring(2, 9)}`;
+    const newId = `product-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     setProducts([
       ...products,
       {
@@ -353,8 +329,8 @@ export default function PedidosPage() {
         imageUrl: '',
         categoryId: null,
         categoryName: '',
-        id: newId
-      }
+        id: newId,
+      },
     ]);
   };
 
@@ -364,11 +340,7 @@ export default function PedidosPage() {
     }
   };
 
-  const handleChange = (
-    value: string | number | null,
-    index: number,
-    field: string
-  ) => {
+  const handleChange = (value: string | number | null, index: number, field: string) => {
     const newProducts = [...products];
 
     // Verificamos que el elemento en el índice exista
@@ -391,7 +363,7 @@ export default function PedidosPage() {
           // Buscar si existe la categoría por nombre
           const valueAsString = String(value);
           const existingCategory = categories.find(
-            (c) => c.name.toLowerCase() === valueAsString.toLowerCase()
+            c => c.name.toLowerCase() === valueAsString.toLowerCase()
           );
 
           if (existingCategory) {
@@ -423,7 +395,7 @@ export default function PedidosPage() {
       const zeroCosts = products.map(() => ({
         proratedShippingCost: 0,
         totalCost: 0,
-        unitCostWithShipping: 0
+        unitCostWithShipping: 0,
       }));
 
       // Comparamos si los valores son diferentes antes de actualizar el estado
@@ -433,21 +405,16 @@ export default function PedidosPage() {
       return;
     }
 
-    const prorated = products.map((product) => {
+    const prorated = products.map(product => {
       const productTotalCost = product.quantity * product.cost;
-      const proratedShipping =
-        (productTotalCost / totalProductCost) * shippingCost;
+      const proratedShipping = (productTotalCost / totalProductCost) * shippingCost;
       const totalCost = productTotalCost + proratedShipping;
       // Cálculo del costo unitario incluyendo el envío prorrateado
       const unitCostWithShipping =
-        product.quantity > 0
-          ? product.cost + proratedShipping / product.quantity
-          : 0;
+        product.quantity > 0 ? product.cost + proratedShipping / product.quantity : 0;
 
       // Convertir a número y validar que no sea NaN
-      const validProratedShipping = Number.isNaN(proratedShipping)
-        ? 0
-        : Number(proratedShipping);
+      const validProratedShipping = Number.isNaN(proratedShipping) ? 0 : Number(proratedShipping);
       const validTotalCost = Number.isNaN(totalCost) ? 0 : Number(totalCost);
       const validUnitCostWithShipping = Number.isNaN(unitCostWithShipping)
         ? 0
@@ -457,7 +424,7 @@ export default function PedidosPage() {
       return {
         proratedShippingCost: validProratedShipping,
         totalCost: validTotalCost,
-        unitCostWithShipping: validUnitCostWithShipping
+        unitCostWithShipping: validUnitCostWithShipping,
       };
     });
 
@@ -505,8 +472,7 @@ export default function PedidosPage() {
   const handleSubmit = async () => {
     // Validar que haya al menos un producto con datos
     const isValid = products.some(
-      (product) =>
-        product.quantity > 0 && product.name.trim() !== '' && product.cost > 0
+      product => product.quantity > 0 && product.name.trim() !== '' && product.cost > 0
     );
 
     if (!isValid) {
@@ -520,32 +486,27 @@ export default function PedidosPage() {
       // Preparar los datos para enviar
       const orderData = {
         products: products
-          .filter(
-            (product) =>
-              product.quantity > 0 &&
-              product.name.trim() !== '' &&
-              product.cost > 0
-          )
-          .map((product) => ({
+          .filter(product => product.quantity > 0 && product.name.trim() !== '' && product.cost > 0)
+          .map(product => ({
             quantity: product.quantity,
             name: product.name.trim(),
             cost: product.cost,
             supplier: product.supplier.trim(),
             imageUrl: product.imageUrl,
             categoryId: product.categoryId,
-            categoryName: product.categoryName?.trim()
+            categoryName: product.categoryName?.trim(),
           })),
         shippingCost,
-        proratedCosts
+        proratedCosts,
       };
 
       // Enviar los datos
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(orderData)
+        body: JSON.stringify(orderData),
       });
 
       if (!response.ok) {
@@ -564,8 +525,8 @@ export default function PedidosPage() {
           supplier: '',
           imageUrl: '',
           categoryId: null,
-          categoryName: ''
-        }
+          categoryName: '',
+        },
       ]);
       setShippingCost(0);
       setFileList([[]]);
@@ -635,7 +596,7 @@ export default function PedidosPage() {
       // Mostrar mensaje de carga
       message.loading({
         content: 'Procesando imagen...',
-        key: `image-${index}`
+        key: `image-${index}`,
       });
 
       // Usamos un ID temporal basado en el índice y timestamp
@@ -645,20 +606,20 @@ export default function PedidosPage() {
       fetch('/api/images', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           url: url,
-          productId: tempProductId
-        })
+          productId: tempProductId,
+        }),
       })
-        .then((response) => {
+        .then(response => {
           if (response.ok) {
             return response.json();
           }
           throw new Error('Error al procesar la URL de la imagen');
         })
-        .then((result) => {
+        .then(result => {
           // Actualizar el producto con la URL procesada
           const newProducts = [...products];
           if (newProducts[index]) {
@@ -680,13 +641,13 @@ export default function PedidosPage() {
           // Mostrar mensaje de éxito
           message.success({
             content: 'Imagen procesada correctamente',
-            key: `image-${index}`
+            key: `image-${index}`,
           });
         })
-        .catch((error) => {
+        .catch(error => {
           message.error({
             content: error.message || 'Error al procesar la imagen',
-            key: `image-${index}`
+            key: `image-${index}`,
           });
         });
     }
@@ -707,14 +668,14 @@ export default function PedidosPage() {
           <InputNumber
             min={0}
             value={product.quantity}
-            onChange={(value) => handleChange(value, index, 'quantity')}
+            onChange={value => handleChange(value, index, 'quantity')}
             placeholder="Cantidad"
             ref={quantityRefs[index]}
-            onKeyDown={(e) => handleKeyDown(e, index)}
+            onKeyDown={e => handleKeyDown(e, index)}
             style={{ width: '100%' }}
           />
         );
-      }
+      },
     },
     {
       title: 'Nombre Producto',
@@ -732,14 +693,14 @@ export default function PedidosPage() {
             placeholder="Nombre del producto"
             value={product.name}
             options={productOptions[index]}
-            onChange={(value) => handleAutoCompleteChange(value, index)}
-            onSelect={(value) => handleSelectProduct(value, index)}
+            onChange={value => handleAutoCompleteChange(value, index)}
+            onSelect={value => handleSelectProduct(value, index)}
             filterOption={false}
-            onKeyDown={(e) => handleKeyDown(e, index)}
+            onKeyDown={e => handleKeyDown(e, index)}
             notFoundContent={loading[index] ? <Spin size="small" /> : null}
           />
         );
-      }
+      },
     },
     {
       title: 'Categoría',
@@ -761,25 +722,23 @@ export default function PedidosPage() {
               style={{ width: '100%' }}
               placeholder="Selecciona categoría"
               value={displayValue}
-              options={categories.map((cat) => ({
+              options={categories.map(cat => ({
                 value: cat.name,
-                label: cat.name
+                label: cat.name,
               }))}
-              onChange={(value) => handleChange(value, index, 'categoryName')}
+              onChange={value => handleChange(value, index, 'categoryName')}
               filterOption={(inputValue, option) =>
-                option?.value
-                  .toUpperCase()
-                  .indexOf(inputValue.toUpperCase()) !== -1
+                option?.value.toUpperCase().indexOf(inputValue.toUpperCase()) !== -1
               }
-              onSelect={(value) => handleCategoryChange(value, index)}
-              onKeyDown={(e) => handleKeyDown(e, index)}
+              onSelect={value => handleCategoryChange(value, index)}
+              onKeyDown={e => handleKeyDown(e, index)}
               className="category-autocomplete"
               popupMatchSelectWidth={true}
               dropdownStyle={{ zIndex: 1050 }}
             />
           </div>
         );
-      }
+      },
     },
     {
       title: 'Costo',
@@ -796,17 +755,15 @@ export default function PedidosPage() {
             min={0}
             step={0.01}
             value={product.cost}
-            onChange={(value) => handleChange(value, index, 'cost')}
+            onChange={value => handleChange(value, index, 'cost')}
             placeholder="Costo"
-            formatter={(value) =>
-              `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-            }
+            formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
             parser={(value): number => parseCurrency(value)}
-            onKeyDown={(e) => handleKeyDown(e, index)}
+            onKeyDown={e => handleKeyDown(e, index)}
             style={{ width: '100%' }}
           />
         );
-      }
+      },
     },
     {
       title: 'Proveedor',
@@ -821,13 +778,13 @@ export default function PedidosPage() {
         return (
           <Input
             value={product.supplier}
-            onChange={(e) => handleChange(e.target.value, index, 'supplier')}
+            onChange={e => handleChange(e.target.value, index, 'supplier')}
             placeholder="Proveedor"
-            onKeyDown={(e) => handleKeyDown(e, index)}
+            onKeyDown={e => handleKeyDown(e, index)}
             style={{ width: '100%' }}
           />
         );
-      }
+      },
     },
     {
       title: 'Imagen',
@@ -860,7 +817,7 @@ export default function PedidosPage() {
                   padding: 0,
                   minWidth: 16,
                   minHeight: 16,
-                  fontSize: 12
+                  fontSize: 12,
                 }}
                 onClick={() => {
                   // Limpiar la imagen
@@ -888,7 +845,7 @@ export default function PedidosPage() {
           {/* Control de carga de imagen */}
           <Upload
             fileList={fileList[index] || []}
-            onChange={(info) => handleFileChange(info as FileInfo, index)}
+            onChange={info => handleFileChange(info as FileInfo, index)}
             showUploadList={false}
             maxCount={1}
             accept="image/*"
@@ -907,9 +864,7 @@ export default function PedidosPage() {
                 type="text"
                 icon={<LinkOutlined />}
                 onClick={() => {
-                  const input = document.getElementById(
-                    `url-input-${index}`
-                  ) as HTMLInputElement;
+                  const input = document.getElementById(`url-input-${index}`) as HTMLInputElement;
                   if (input && input.value) {
                     handleImageUrl(input.value, index);
                     input.value = '';
@@ -919,7 +874,7 @@ export default function PedidosPage() {
               />
             }
             id={`url-input-${index}`}
-            onPressEnter={(e) => {
+            onPressEnter={e => {
               e.preventDefault();
               const target = e.target as HTMLInputElement;
               if (target.value) {
@@ -930,7 +885,7 @@ export default function PedidosPage() {
             style={{ marginLeft: 8, flex: 1 }}
           />
         </div>
-      )
+      ),
     },
     {
       title: 'Envío Prorrateado',
@@ -938,11 +893,8 @@ export default function PedidosPage() {
       key: 'proratedShippingCost',
       width: 130,
       render: (_text: string, _record: OrderProduct, index: number) => (
-        <Text>
-          ${' '}
-          {formatNumberOrZero(getProrationForIndex(index).proratedShippingCost)}
-        </Text>
-      )
+        <Text>$ {formatNumberOrZero(getProrationForIndex(index).proratedShippingCost)}</Text>
+      ),
     },
     {
       title: 'Precio Final Unitario',
@@ -951,10 +903,9 @@ export default function PedidosPage() {
       width: 150,
       render: (_text: string, _record: OrderProduct, index: number) => (
         <Text type="success">
-          ${' '}
-          {formatNumberOrZero(getProrationForIndex(index).unitCostWithShipping)}
+          $ {formatNumberOrZero(getProrationForIndex(index).unitCostWithShipping)}
         </Text>
-      )
+      ),
     },
     {
       title: 'Total',
@@ -962,10 +913,8 @@ export default function PedidosPage() {
       key: 'totalCost',
       width: 100,
       render: (_text: string, _record: OrderProduct, index: number) => (
-        <Text strong>
-          $ {formatNumberOrZero(getProrationForIndex(index).totalCost)}
-        </Text>
-      )
+        <Text strong>$ {formatNumberOrZero(getProrationForIndex(index).totalCost)}</Text>
+      ),
     },
     {
       title: 'Acciones',
@@ -979,8 +928,8 @@ export default function PedidosPage() {
           icon={<DeleteOutlined />}
           style={{ display: products.length > 1 ? 'inline-block' : 'none' }}
         />
-      )
-    }
+      ),
+    },
   ];
 
   // Asegurémonos de que el getProrationForIndex sea memoizado para evitar recálculos innecesarios
@@ -990,7 +939,7 @@ export default function PedidosPage() {
         proratedCosts[index] || {
           proratedShippingCost: 0,
           totalCost: 0,
-          unitCostWithShipping: 0
+          unitCostWithShipping: 0,
         }
       );
     },
@@ -1004,7 +953,7 @@ export default function PedidosPage() {
         height: 'calc(100vh - 64px)',
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden'
+        overflow: 'hidden',
       }}
     >
       <Card
@@ -1018,7 +967,7 @@ export default function PedidosPage() {
           flexDirection: 'column',
           height: '100%',
           overflow: 'hidden',
-          maxHeight: 'calc(100vh - 80px)'
+          maxHeight: 'calc(100vh - 80px)',
         }}
         styles={{
           body: {
@@ -1026,8 +975,8 @@ export default function PedidosPage() {
             padding: '16px',
             overflow: 'hidden',
             display: 'flex',
-            flexDirection: 'column'
-          }
+            flexDirection: 'column',
+          },
         }}
         actions={[
           <div
@@ -1036,7 +985,7 @@ export default function PedidosPage() {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              padding: '0 16px'
+              padding: '0 16px',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -1049,9 +998,7 @@ export default function PedidosPage() {
                 onChange={handleShippingCostChange}
                 min={0}
                 step={0.01}
-                formatter={(value) =>
-                  `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-                }
+                formatter={value => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                 parser={(value): number => parseCurrency(value)}
               />
             </div>
@@ -1063,20 +1010,20 @@ export default function PedidosPage() {
             >
               Guardar Pedido
             </Button>
-          </div>
+          </div>,
         ]}
       >
         <div
           style={{
             flex: 1,
             padding: '0',
-            overflow: 'hidden'
+            overflow: 'hidden',
           }}
         >
           <Table
             dataSource={products}
             columns={columns}
-            rowKey={(record) => record.id || `fallback-${Math.random()}`}
+            rowKey={record => record.id || `fallback-${Math.random()}`}
             pagination={false}
             bordered
             scroll={{ y: 'calc( 100vh - 390px )' }}
@@ -1085,14 +1032,8 @@ export default function PedidosPage() {
             className={styles.customTable}
             summary={() => {
               // Calcular totales
-              const totalQuantity = products.reduce(
-                (acc, product) => acc + product.quantity,
-                0
-              );
-              const totalCost = proratedCosts.reduce(
-                (acc, cost) => acc + cost.totalCost,
-                0
-              );
+              const totalQuantity = products.reduce((acc, product) => acc + product.quantity, 0);
+              const totalCost = proratedCosts.reduce((acc, cost) => acc + cost.totalCost, 0);
 
               return (
                 <Table.Summary fixed>
@@ -1111,9 +1052,7 @@ export default function PedidosPage() {
                       </Button>
                     </Table.Summary.Cell>
                     <Table.Summary.Cell index={7} colSpan={3}>
-                      <Text strong>
-                        TOTAL: $ {formatNumberOrZero(totalCost)}
-                      </Text>
+                      <Text strong>TOTAL: $ {formatNumberOrZero(totalCost)}</Text>
                     </Table.Summary.Cell>
                   </Table.Summary.Row>
                 </Table.Summary>

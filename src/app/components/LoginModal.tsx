@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React from 'react';
 import { Modal } from 'antd';
@@ -11,15 +11,8 @@ interface LoginModalProps {
 
 export function LoginModal({ open, onClose }: LoginModalProps) {
   return (
-    <Modal
-      open={open}
-      onCancel={onClose}
-      footer={null}
-      width={420}
-      destroyOnClose
-      centered
-    >
+    <Modal open={open} onCancel={onClose} footer={null} width={420} destroyOnClose centered>
       <LoginForm onClose={onClose} />
     </Modal>
   );
-} 
+}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 import { getStoredUser } from '@/lib/auth';
 import { Spin, Button, Result } from 'antd';
@@ -18,6 +18,7 @@ export function RouteGuard({ children }: RouteGuardProps) {
   const { isLoading, userRole, isAuthenticated, refreshUser } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [loadingTimedOut, setLoadingTimedOut] = useState(false);
   const [locallyAuthenticated, setLocallyAuthenticated] = useState(false);
   const [clientInitialized, setClientInitialized] = useState(false);
@@ -63,25 +64,32 @@ export function RouteGuard({ children }: RouteGuardProps) {
 
     // Buscar la configuración de la ruta actual
     const matchedRoute = protectedRoutes.find(
-      (route) =>
-        pathname === route.path || pathname.startsWith(`${route.path}/`)
+      route => pathname === route.path || pathname.startsWith(`${route.path}/`)
     );
 
     // Si la ruta no está protegida, permitir acceso
     if (!matchedRoute) return;
 
-    // Si el usuario no está autenticado, redirigir al catálogo
+    // Función para redireccionar preservando parámetros de URL
+    const redirectToHome = () => {
+      // Preservar los parámetros de búsqueda actuales
+      const currentParams = new URLSearchParams(searchParams.toString());
+      const redirectPath = currentParams.toString() ? `/?${currentParams.toString()}` : '/';
+      router.push(redirectPath);
+    };
+
+    // Si el usuario no está autenticado, redirigir al catálogo preservando parámetros
     if (!isAuthenticated && !locallyAuthenticated) {
-      router.push('/');
+      redirectToHome();
       return;
     }
 
     // Verificar si el usuario tiene el rol necesario para acceder
     const hasAccess = canAccessRoute(pathname, userRole);
 
-    // Si no tiene acceso, redirigir al catálogo
+    // Si no tiene acceso, redirigir al catálogo preservando parámetros
     if (!hasAccess) {
-      router.push('/');
+      redirectToHome();
     }
   }, [
     pathname,
@@ -91,7 +99,8 @@ export function RouteGuard({ children }: RouteGuardProps) {
     router,
     loadingTimedOut,
     locallyAuthenticated,
-    clientInitialized
+    clientInitialized,
+    searchParams,
   ]);
 
   // Mostrar spinner durante la carga (si no ha pasado demasiado tiempo)
@@ -103,7 +112,7 @@ export function RouteGuard({ children }: RouteGuardProps) {
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
-          flexDirection: 'column'
+          flexDirection: 'column',
         }}
       >
         <Spin size="large" />
@@ -122,7 +131,7 @@ export function RouteGuard({ children }: RouteGuardProps) {
           height: 'calc(100vh - 64px)',
           display: 'flex',
           justifyContent: 'center',
-          alignItems: 'center'
+          alignItems: 'center',
         }}
       >
         <Result
@@ -142,7 +151,7 @@ export function RouteGuard({ children }: RouteGuardProps) {
             </Button>,
             <Button key="continue" onClick={() => setLoadingTimedOut(false)}>
               Continuar
-            </Button>
+            </Button>,
           ]}
         />
       </div>

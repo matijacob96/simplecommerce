@@ -1,5 +1,6 @@
-import prisma from "@/lib/prisma";
-import { NextResponse } from "next/server";
+import prisma from '@/lib/prisma';
+import { NextResponse } from 'next/server';
+import { getErrorMessage } from '@/types/error-types';
 
 // GET para obtener todos los clientes
 export async function GET() {
@@ -9,12 +10,12 @@ export async function GET() {
         name: 'asc',
       },
     });
-    
+
     return NextResponse.json(customers);
-  } catch (error) {
-    console.error("Error al obtener clientes:", error);
+  } catch (error: unknown) {
+    console.error('Error al obtener los clientes:', error);
     return NextResponse.json(
-      { error: "Error al obtener los clientes" },
+      { error: getErrorMessage(error) || 'Error al obtener los clientes' },
       { status: 500 }
     );
   }
@@ -27,10 +28,7 @@ export async function POST(request: Request) {
     const { name, whatsapp, instagram, facebook } = body;
 
     if (!name || name.trim() === '') {
-      return NextResponse.json(
-        { error: "El nombre del cliente es obligatorio" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'El nombre del cliente es obligatorio' }, { status: 400 });
     }
 
     // Crear el cliente
@@ -45,11 +43,11 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(customer);
-  } catch (error: any) {
-    console.error("Error al crear el cliente:", error);
+  } catch (error: unknown) {
+    console.error('Error al crear el cliente:', error);
     return NextResponse.json(
-      { error: error.message || "Error al crear el cliente" },
+      { error: getErrorMessage(error) || 'Error al crear el cliente' },
       { status: 500 }
     );
   }
-} 
+}

@@ -13,10 +13,7 @@ export async function POST(request: Request) {
     const { userId } = await request.json();
 
     if (!userId) {
-      return NextResponse.json(
-        { error: 'Se requiere ID de usuario' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Se requiere ID de usuario' }, { status: 400 });
     }
 
     // Usar la API de Supabase directamente para obtener el usuario completo
@@ -31,13 +28,12 @@ export async function POST(request: Request) {
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
         autoRefreshToken: false,
-        persistSession: false
-      }
+        persistSession: false,
+      },
     });
 
     // Obtener información del usuario usando la API de admin
-    const { data: userData, error: userError } =
-      await supabaseAdmin.auth.admin.getUserById(userId);
+    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
 
     if (userError || !userData || !userData.user) {
       console.error('Error al obtener usuario:', userError);
@@ -56,11 +52,7 @@ export async function POST(request: Request) {
       roleSource = 'email_match';
     }
     // Si hay app_metadata.provider, usarlo como rol
-    else if (
-      appMetadata &&
-      typeof appMetadata === 'object' &&
-      'provider' in appMetadata
-    ) {
+    else if (appMetadata && typeof appMetadata === 'object' && 'provider' in appMetadata) {
       const providerValue = appMetadata.provider;
       if (typeof providerValue === 'string') {
         role = providerValue;
@@ -88,8 +80,7 @@ export async function POST(request: Request) {
       // Si es nuestro tipo personalizado con detalles
       if ('details' in error) {
         const typedError = error as ErrorWithDetails;
-        errorDetails =
-          typedError.details || typedError.stack || 'Sin detalles adicionales';
+        errorDetails = typedError.details || typedError.stack || 'Sin detalles adicionales';
       } else {
         errorDetails = error.stack || 'Sin detalles adicionales';
       }
@@ -98,7 +89,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: errorMessage,
-        details: errorDetails
+        details: errorDetails,
       },
       { status: 500 }
     );

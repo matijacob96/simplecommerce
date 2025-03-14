@@ -14,13 +14,9 @@ import {
   Select,
   message,
   Row,
-  Col
+  Col,
 } from 'antd';
-import {
-  UserAddOutlined,
-  EditOutlined,
-  DeleteOutlined
-} from '@ant-design/icons';
+import { UserAddOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { User, UserRole } from '@/lib/auth';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -69,18 +65,14 @@ export default function UsersPage() {
   }, [fetchUsers]);
 
   // Función para crear un nuevo usuario
-  const handleCreateUser = async (values: {
-    email: string;
-    password: string;
-    role: UserRole;
-  }) => {
+  const handleCreateUser = async (values: { email: string; password: string; role: UserRole }) => {
     try {
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(values)
+        body: JSON.stringify(values),
       });
 
       if (!response.ok) {
@@ -95,9 +87,7 @@ export default function UsersPage() {
     } catch (error: unknown) {
       console.error('Error al crear usuario:', error);
       messageApi.error(
-        `Error al crear usuario: ${
-          error instanceof Error ? error.message : 'Error desconocido'
-        }`
+        `Error al crear usuario: ${error instanceof Error ? error.message : 'Error desconocido'}`
       );
     }
   };
@@ -110,9 +100,9 @@ export default function UsersPage() {
       const response = await fetch(`/api/users/${selectedUser.id}`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ role: values.role })
+        body: JSON.stringify({ role: values.role }),
       });
 
       if (!response.ok) {
@@ -126,9 +116,7 @@ export default function UsersPage() {
     } catch (error: unknown) {
       console.error('Error al actualizar rol:', error);
       messageApi.error(
-        `Error al actualizar rol: ${
-          error instanceof Error ? error.message : 'Error desconocido'
-        }`
+        `Error al actualizar rol: ${error instanceof Error ? error.message : 'Error desconocido'}`
       );
     }
   };
@@ -139,7 +127,7 @@ export default function UsersPage() {
 
     try {
       const response = await fetch(`/api/users/${selectedUser.id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       });
 
       if (!response.ok) {
@@ -153,9 +141,7 @@ export default function UsersPage() {
     } catch (error: unknown) {
       console.error('Error al eliminar usuario:', error);
       messageApi.error(
-        `Error al eliminar usuario: ${
-          error instanceof Error ? error.message : 'Error desconocido'
-        }`
+        `Error al eliminar usuario: ${error instanceof Error ? error.message : 'Error desconocido'}`
       );
     }
   };
@@ -178,7 +164,7 @@ export default function UsersPage() {
     {
       title: 'Email',
       dataIndex: 'email',
-      key: 'email'
+      key: 'email',
     },
     {
       title: 'Rol',
@@ -190,7 +176,7 @@ export default function UsersPage() {
         if (role === 'vendedor') color = 'green';
 
         return <Tag color={color}>{role.toUpperCase()}</Tag>;
-      }
+      },
     },
     {
       title: 'Acciones',
@@ -205,27 +191,19 @@ export default function UsersPage() {
               icon={<EditOutlined />}
               onClick={() => showEditModal(record)}
               disabled={isCurrentUser}
-              title={
-                isCurrentUser
-                  ? 'No puedes editar tu propio usuario'
-                  : 'Editar usuario'
-              }
+              title={isCurrentUser ? 'No puedes editar tu propio usuario' : 'Editar usuario'}
             />
             <Button
               danger
               icon={<DeleteOutlined />}
               onClick={() => showDeleteModal(record)}
               disabled={isCurrentUser}
-              title={
-                isCurrentUser
-                  ? 'No puedes eliminar tu propio usuario'
-                  : 'Eliminar usuario'
-              }
+              title={isCurrentUser ? 'No puedes eliminar tu propio usuario' : 'Eliminar usuario'}
             />
           </Space>
         );
-      }
-    }
+      },
+    },
   ];
 
   return (
@@ -251,12 +229,7 @@ export default function UsersPage() {
           </Row>
         }
       >
-        <Table
-          columns={columns}
-          dataSource={users}
-          rowKey="id"
-          loading={loading}
-        />
+        <Table columns={columns} dataSource={users} rowKey="id" loading={loading} />
       </Card>
 
       {/* Modal para crear usuario */}
@@ -272,7 +245,7 @@ export default function UsersPage() {
             label="Correo Electrónico"
             rules={[
               { required: true, message: 'Por favor ingresa un correo' },
-              { type: 'email', message: 'Ingresa un correo electrónico válido' }
+              { type: 'email', message: 'Ingresa un correo electrónico válido' },
             ]}
           >
             <Input />
@@ -285,8 +258,8 @@ export default function UsersPage() {
               { required: true, message: 'Por favor ingresa una contraseña' },
               {
                 min: 6,
-                message: 'La contraseña debe tener al menos 6 caracteres'
-              }
+                message: 'La contraseña debe tener al menos 6 caracteres',
+              },
             ]}
           >
             <Input.Password />
@@ -306,12 +279,8 @@ export default function UsersPage() {
           </Form.Item>
 
           <Form.Item>
-            <div
-              style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}
-            >
-              <Button onClick={() => setCreateModalVisible(false)}>
-                Cancelar
-              </Button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <Button onClick={() => setCreateModalVisible(false)}>Cancelar</Button>
               <Button type="primary" htmlType="submit">
                 Crear
               </Button>
@@ -345,12 +314,8 @@ export default function UsersPage() {
           </Form.Item>
 
           <Form.Item>
-            <div
-              style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}
-            >
-              <Button onClick={() => setEditModalVisible(false)}>
-                Cancelar
-              </Button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <Button onClick={() => setEditModalVisible(false)}>Cancelar</Button>
               <Button type="primary" htmlType="submit">
                 Actualizar
               </Button>
@@ -369,9 +334,7 @@ export default function UsersPage() {
         cancelText="Cancelar"
         okButtonProps={{ danger: true }}
       >
-        <p>
-          ¿Estás seguro que deseas eliminar al usuario {selectedUser?.email}?
-        </p>
+        <p>¿Estás seguro que deseas eliminar al usuario {selectedUser?.email}?</p>
         <p>Esta acción no se puede deshacer.</p>
       </Modal>
     </div>

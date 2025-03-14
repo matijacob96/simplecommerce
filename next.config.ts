@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
   // Ignorar errores de ESLint durante el build para permitir el despliegue
   eslint: {
     // No fallar el build por errores de ESLint
-    ignoreDuringBuilds: true
+    ignoreDuringBuilds: true,
   },
 
   // Configuración para el componente next/image
@@ -25,10 +25,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'hglajudlstlnvfukamvh.supabase.co',
         port: '',
-        pathname: '/storage/v1/object/public/**'
-      }
-    ]
-  }
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
+  },
 };
 
 export default nextConfig;

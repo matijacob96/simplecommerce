@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
-import { Decimal } from "@prisma/client/runtime/library";
+import { NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+import { Decimal } from '@prisma/client/runtime/library';
 
 // Función auxiliar para convertir Decimal a number
 const toNumber = (value: Decimal | number | null | undefined): number => {
@@ -15,40 +15,34 @@ export async function POST(request: Request) {
     const { action, ids, data } = body;
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return NextResponse.json(
-        { message: "Se requiere un array de IDs válido" },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Se requiere un array de IDs válido' }, { status: 400 });
     }
 
     // Validar que los IDs sean números
-    const validIds = ids.filter(id => typeof id === "number");
+    const validIds = ids.filter(id => typeof id === 'number');
     if (validIds.length === 0) {
-      return NextResponse.json(
-        { message: "No se proporcionaron IDs válidos" },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'No se proporcionaron IDs válidos' }, { status: 400 });
     }
 
-    if (action === "delete") {
+    if (action === 'delete') {
       // Eliminar productos en masa
       const deleted = await prisma.product.deleteMany({
         where: {
           id: {
-            in: validIds
-          }
-        }
+            in: validIds,
+          },
+        },
       });
 
       return NextResponse.json({
         message: `${deleted.count} productos eliminados correctamente`,
-        affected: deleted.count
+        affected: deleted.count,
       });
-    } else if (action === "update") {
+    } else if (action === 'update') {
       // Actualizar productos en masa
       if (!data || Object.keys(data).length === 0) {
         return NextResponse.json(
-          { message: "No se proporcionaron datos para actualizar" },
+          { message: 'No se proporcionaron datos para actualizar' },
           { status: 400 }
         );
       }
@@ -57,74 +51,71 @@ export async function POST(request: Request) {
       // ya que los precios pueden cambiar según el margen de la categoría
       if ('category_id' in data) {
         // Primero obtener la categoría si existe para conocer su margen
-        let profitMargin = 0.2; // Margen predeterminado
-        
+        let _profitMargin = 0.2; // Margen predeterminado
+
         if (data.category_id !== null) {
           const category = await prisma.category.findUnique({
-            where: { id: Number(data.category_id) }
+            where: { id: Number(data.category_id) },
           });
-          
+
           if (category && category.profit_margin !== null) {
-            profitMargin = toNumber(category.profit_margin);
+            _profitMargin = toNumber(category.profit_margin);
           }
         }
-        
+
         // Obtener todos los productos afectados
         const productsToUpdate = await prisma.product.findMany({
           where: {
             id: {
-              in: validIds
-            }
-          }
+              in: validIds,
+            },
+          },
         });
-        
+
         // Actualizar cada producto individualmente para poder ajustar el precio
         const updatePromises = productsToUpdate.map(product => {
           return prisma.product.update({
             where: { id: product.id },
             data: {
-              category_id: data.category_id
+              category_id: data.category_id,
               // Eliminamos la actualización del precio
-            }
+            },
           });
         });
-        
+
         // Ejecutar todas las actualizaciones en paralelo
         await Promise.all(updatePromises);
-        
+
         return NextResponse.json({
           message: `${productsToUpdate.length} productos actualizados correctamente con nuevos precios`,
-          affected: productsToUpdate.length
+          affected: productsToUpdate.length,
         });
       } else {
         // Actualización normal para otros campos
-        const updateData: Record<string, any> = { ...data };
-        
+        const updateData: Record<string, unknown> = { ...data };
+
         const updated = await prisma.product.updateMany({
           where: {
             id: {
-              in: validIds
-            }
+              in: validIds,
+            },
           },
-          data: updateData
+          data: updateData,
         });
 
         return NextResponse.json({
           message: `${updated.count} productos actualizados correctamente`,
-          affected: updated.count
+          affected: updated.count,
         });
       }
     } else {
-      return NextResponse.json(
-        { message: "Acción no soportada" },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: 'Acción no soportada' }, { status: 400 });
     }
   } catch (error) {
-    console.error("Error en operación bulk de productos:", error);
+    console.error('Error en operación bulk de productos:', error);
     return NextResponse.json(
-      { message: "Error en la operación bulk", error: String(error) },
+      { message: 'Error en la operación bulk', error: String(error) },
       { status: 500 }
     );
   }
-} 
+}

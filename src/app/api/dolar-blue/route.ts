@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getErrorMessage } from '@/types/error-types';
 
 // Cache de la respuesta para no hacer demasiadas peticiones al sitio externo
 let cachedData: { compra: number; venta: number; timestamp: number } | null = null;
@@ -9,6 +10,18 @@ const DEFAULT_BLUE_RATE = 1250;
 
 // URL directa de la API
 const API_URL = 'https://backend-ifa-production-a92c.up.railway.app/api/dolar/v2/general';
+
+// Interfaces para tipar los datos de la API externa
+interface DolarItem {
+  titulo?: string;
+  venta: string;
+  compra: string;
+}
+
+interface APIResponse {
+  panel?: DolarItem[];
+  publicidades?: DolarItem[];
+}
 
 export async function GET() {
   try {
@@ -21,8 +34,8 @@ export async function GET() {
           compra: cachedData.compra,
           venta: cachedData.venta,
           fromCache: true,
-          timestamp: cachedData.timestamp
-        }
+          timestamp: cachedData.timestamp,
+        },
       });
     }
 
@@ -30,46 +43,47 @@ export async function GET() {
     const response = await fetch(API_URL, {
       headers: {
         'sec-ch-ua-platform': '"macOS"',
-        'Referer': 'https://www.finanzasargy.com/',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*',
+        Referer: 'https://www.finanzasargy.com/',
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+        Accept: 'application/json, text/plain, */*',
         'sec-ch-ua': '"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"',
         'api-client': 'finanzasargy',
-        'sec-ch-ua-mobile': '?0'
+        'sec-ch-ua-mobile': '?0',
       },
-      next: { revalidate: 3600 } // 1 hora
+      next: { revalidate: 3600 }, // 1 hora
     });
 
     if (!response.ok) {
       throw new Error(`Error al obtener datos: ${response.status}`);
     }
 
-    // Parsear la respuesta JSON
-    const data = await response.json();
-    
-    // Extraer valores del dólar blue
+    const data: APIResponse = await response.json();
     let venta = 0;
     let compra = 0;
 
     // La estructura tiene un array llamado "panel" donde cada item es un tipo de dólar
     if (data.panel && Array.isArray(data.panel)) {
       // Buscar el objeto con título "Dólar Blue"
-      const blueData = data.panel.find((item: any) => 
-        item.titulo?.toLowerCase().includes('blue'));
-      
+      const blueData = data.panel.find((item: DolarItem) =>
+        item.titulo?.toLowerCase().includes('blue')
+      );
+
       if (blueData) {
         // Convertir a número y eliminar cualquier carácter no numérico
         venta = parseFloat(blueData.venta.replace(/[^\d.,]/g, '').replace(',', '.'));
         compra = parseFloat(blueData.compra.replace(/[^\d.,]/g, '').replace(',', '.'));
       }
     }
-    
+
     // Si no encontramos en el panel, buscar en publicidades
     if ((!venta || !compra) && data.publicidades && Array.isArray(data.publicidades)) {
-      const pubData = data.publicidades.find((item: any) => 
-        item.titulo?.toLowerCase().includes('dólar') || 
-        item.titulo?.toLowerCase().includes('dolar'));
-      
+      const pubData = data.publicidades.find(
+        (item: DolarItem) =>
+          item.titulo?.toLowerCase().includes('dólar') ||
+          item.titulo?.toLowerCase().includes('dolar')
+      );
+
       if (pubData) {
         venta = parseFloat(pubData.venta.replace(/[^\d.,]/g, '').replace(',', '.'));
         compra = parseFloat(pubData.compra.replace(/[^\d.,]/g, '').replace(',', '.'));
@@ -81,7 +95,7 @@ export async function GET() {
       console.warn('No se pudo obtener el valor de venta, usando valor por defecto');
       venta = DEFAULT_BLUE_RATE;
     }
-    
+
     if (isNaN(compra) || compra <= 0) {
       console.warn('No se pudo obtener el valor de compra, usando valor por defecto');
       compra = DEFAULT_BLUE_RATE * 0.97; // Típicamente la compra es algo menor
@@ -91,7 +105,7 @@ export async function GET() {
     cachedData = {
       compra,
       venta,
-      timestamp: now
+      timestamp: now,
     };
 
     return NextResponse.json({
@@ -100,37 +114,21 @@ export async function GET() {
         compra,
         venta,
         fromCache: false,
-        timestamp: now
-      }
-    });
-  } catch (error) {
-    console.error('Error obteniendo precio del dólar blue:', error);
-    
-    // Si ocurre un error pero tenemos datos en caché, devolver esos datos
-    if (cachedData) {
-      return NextResponse.json({
-        success: true,
-        data: {
-          compra: cachedData.compra,
-          venta: cachedData.venta,
-          fromCache: true,
-          timestamp: cachedData.timestamp,
-          error: 'Se están utilizando datos en caché debido a un error de conexión'
-        }
-      });
-    }
-    
-    // Si no hay datos en caché, devolver valores predeterminados
-    const now = Date.now();
-    return NextResponse.json({
-      success: true,
-      data: {
-        compra: DEFAULT_BLUE_RATE * 0.97,
-        venta: DEFAULT_BLUE_RATE,
-        fromCache: false,
         timestamp: now,
-        error: 'Usando valor predeterminado debido a un error de conexión'
-      }
+      },
     });
+  } catch (error: unknown) {
+    console.error('Error fetching dolar blue rate:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: getErrorMessage(error) || 'Error al obtener la cotización del dólar',
+        fallbackData: {
+          compra: DEFAULT_BLUE_RATE,
+          venta: DEFAULT_BLUE_RATE,
+        },
+      },
+      { status: 500 }
+    );
   }
-} 
+}

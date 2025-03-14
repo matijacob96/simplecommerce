@@ -18,7 +18,7 @@ import {
   Col,
   Radio,
   Input,
-  AutoComplete
+  AutoComplete,
 } from 'antd';
 import {
   ShoppingCartOutlined,
@@ -30,14 +30,14 @@ import {
   FacebookOutlined,
   EditOutlined,
   CheckOutlined,
-  CloseOutlined
+  CloseOutlined,
 } from '@ant-design/icons';
 import { useRouter, useParams } from 'next/navigation';
 import {
   formatUsdPrice,
   calculateSellingPrice as calculateProductSellingPrice,
   formatPriceWithExchange,
-  calculateArsPrice
+  calculateArsPrice,
 } from '@/utils/priceUtils';
 import { Product, Customer, SaleItem as ApiSaleItem } from '@/types';
 import { useAuth } from '@/lib/AuthContext';
@@ -76,16 +76,12 @@ export default function EditSalePage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [saleItems, setSaleItems] = useState<SaleItemWithSellingPrice[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<number | null>(null);
-  const [selectedProductPrice, setSelectedProductPrice] = useState<
-    number | null
-  >(null);
+  const [selectedProductPrice, setSelectedProductPrice] = useState<number | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<string>('efectivo');
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(
-    null
-  );
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [newCustomerData, setNewCustomerData] = useState<{
     name: string;
     whatsapp: string;
@@ -159,18 +155,16 @@ export default function EditSalePage() {
       setSale(saleData);
 
       // Formatear los items para el estado
-      const formattedItems: SaleItemWithSellingPrice[] = saleData.items.map(
-        (item) => ({
-          id: item.id,
-          product_id: item.product_id,
-          quantity: item.quantity,
-          product: item.product,
-          selling_price: Number(item.selling_price),
-          price_ars: Number(item.price_ars || 0),
-          custom_price: false,
-          editing: false
-        })
-      );
+      const formattedItems: SaleItemWithSellingPrice[] = saleData.items.map(item => ({
+        id: item.id,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        product: item.product,
+        selling_price: Number(item.selling_price),
+        price_ars: Number(item.price_ars || 0),
+        custom_price: false,
+        editing: false,
+      }));
 
       setSaleItems(formattedItems);
 
@@ -187,17 +181,17 @@ export default function EditSalePage() {
         // Obtener tipo de cambio
         const exchangeRateValue = await getExchangeRate();
         if (exchangeRateValue) {
-          setSale((prevSale) => {
+          setSale(prevSale => {
             if (!prevSale) return prevSale;
 
             // Creamos un objeto que tenga al menos el toString necesario para Prisma.Decimal
             const exchangeRateWithToString = {
-              toString: () => exchangeRateValue
+              toString: () => exchangeRateValue,
             } as Prisma.Decimal;
 
             return {
               ...prevSale,
-              exchange_rate: exchangeRateWithToString
+              exchange_rate: exchangeRateWithToString,
             };
           });
         }
@@ -227,7 +221,7 @@ export default function EditSalePage() {
         name: '',
         whatsapp: '',
         instagram: '',
-        facebook: ''
+        facebook: '',
       });
     } else if (value === null || value === '') {
       // Opción "Sin cliente"
@@ -247,7 +241,7 @@ export default function EditSalePage() {
     if (newCustomerData) {
       setNewCustomerData({
         ...newCustomerData,
-        [field]: value
+        [field]: value,
       });
     }
   };
@@ -261,7 +255,7 @@ export default function EditSalePage() {
   const handleProductSelect = (productId: number) => {
     setSelectedProduct(productId);
 
-    const product = products.find((p) => p.id === productId);
+    const product = products.find(p => p.id === productId);
     if (product) {
       const price = calculateSellingPrice(product);
       setSelectedProductPrice(price);
@@ -330,9 +324,7 @@ export default function EditSalePage() {
 
     // Verificar stock disponible
     if (item.product.stock < newQuantity) {
-      message.warning(
-        `No hay suficiente stock (disponible: ${item.product.stock})`
-      );
+      message.warning(`No hay suficiente stock (disponible: ${item.product.stock})`);
       return;
     }
 
@@ -347,7 +339,7 @@ export default function EditSalePage() {
     }
 
     // Encontrar el producto seleccionado
-    const product = products.find((p) => p.id === selectedProduct);
+    const product = products.find(p => p.id === selectedProduct);
     if (!product) {
       message.error('Producto no encontrado');
       return;
@@ -355,15 +347,12 @@ export default function EditSalePage() {
 
     // Verificar si hay suficiente stock
     if (product.stock < quantity) {
-      message.warning(
-        `Stock insuficiente. Solo hay ${product.stock} unidades disponibles.`
-      );
+      message.warning(`Stock insuficiente. Solo hay ${product.stock} unidades disponibles.`);
       return;
     }
 
     // Usar el precio editado si existe, de lo contrario calcular el predeterminado
-    const selling_price =
-      selectedProductPrice || calculateSellingPrice(product);
+    const selling_price = selectedProductPrice || calculateSellingPrice(product);
 
     // Calcular precio en ARS si tenemos tipo de cambio
     let price_ars = 0;
@@ -373,9 +362,7 @@ export default function EditSalePage() {
     }
 
     // Verificar si el producto ya está en la lista
-    const existingItemIndex = saleItems.findIndex(
-      (item) => item.product_id === product.id
-    );
+    const existingItemIndex = saleItems.findIndex(item => item.product_id === product.id);
 
     if (existingItemIndex >= 0) {
       // El producto ya está en la lista, aumentar la cantidad
@@ -406,7 +393,7 @@ export default function EditSalePage() {
         product,
         selling_price,
         price_ars,
-        custom_price: selectedProductPrice !== null // Marcar como personalizado si se editó el precio
+        custom_price: selectedProductPrice !== null, // Marcar como personalizado si se editó el precio
       };
 
       setSaleItems([...saleItems, newItem]);
@@ -453,32 +440,28 @@ export default function EditSalePage() {
       }
 
       const saleData: SaleUpdateData = {
-        items: saleItems.map((item) => ({
+        items: saleItems.map(item => ({
           id: item.id, // Include the item ID if it exists
           product_id: item.product_id,
           quantity: item.quantity,
           selling_price: item.selling_price,
-          price_ars: item.price_ars
+          price_ars: item.price_ars,
         })),
         payment_method: paymentMethod,
-        user_id: user?.id || sale?.user_id // Mantener el usuario original si no hay sesión
+        user_id: user?.id || sale?.user_id, // Mantener el usuario original si no hay sesión
       };
 
       // Añadir datos del cliente si corresponde
       if (selectedCustomerId) {
         // Cliente existente
         saleData.customer_id = selectedCustomerId;
-      } else if (
-        newCustomerData &&
-        showNewCustomerForm &&
-        newCustomerData.name.trim() !== ''
-      ) {
+      } else if (newCustomerData && showNewCustomerForm && newCustomerData.name.trim() !== '') {
         // Nuevo cliente
         saleData.customer_data = {
           name: newCustomerData.name,
           whatsapp: newCustomerData.whatsapp || null,
           instagram: newCustomerData.instagram || null,
-          facebook: newCustomerData.facebook || null
+          facebook: newCustomerData.facebook || null,
         };
       } else {
         // Sin cliente
@@ -488,9 +471,9 @@ export default function EditSalePage() {
       const response = await fetch(`/api/sales/${saleId}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(saleData)
+        body: JSON.stringify(saleData),
       });
 
       if (!response.ok) {
@@ -503,8 +486,7 @@ export default function EditSalePage() {
     } catch (error: unknown) {
       console.error('Error al actualizar la venta:', error);
 
-      const errorMessage =
-        error instanceof Error ? error.message : 'Error al actualizar la venta';
+      const errorMessage = error instanceof Error ? error.message : 'Error al actualizar la venta';
 
       message.error(errorMessage);
     } finally {
@@ -540,15 +522,15 @@ export default function EditSalePage() {
         <InputNumber
           min={1}
           value={item.quantity}
-          onChange={(value) => handleQuantityChange(index, value || 1)}
+          onChange={value => handleQuantityChange(index, value || 1)}
           style={{ width: 80 }}
         />
-      )
+      ),
     },
     {
       title: 'Producto',
       dataIndex: ['product', 'name'],
-      key: 'product'
+      key: 'product',
     },
     {
       title: 'Precio USD',
@@ -564,14 +546,9 @@ export default function EditSalePage() {
                 step={0.01}
                 precision={2}
                 defaultValue={item.selling_price}
-                onBlur={(e) =>
-                  saveEditedPrice(index, parseFloat(e.target.value))
-                }
-                onPressEnter={(e) =>
-                  saveEditedPrice(
-                    index,
-                    parseFloat((e.target as HTMLInputElement).value)
-                  )
+                onBlur={e => saveEditedPrice(index, parseFloat(e.target.value))}
+                onPressEnter={e =>
+                  saveEditedPrice(index, parseFloat((e.target as HTMLInputElement).value))
                 }
                 autoFocus
               />
@@ -598,9 +575,7 @@ export default function EditSalePage() {
 
         return (
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <Text style={{ marginRight: 4 }}>
-              {formatUsdPrice(item.selling_price)}
-            </Text>
+            <Text style={{ marginRight: 4 }}>{formatUsdPrice(item.selling_price)}</Text>
             <Button
               type="link"
               size="small"
@@ -610,19 +585,16 @@ export default function EditSalePage() {
             />
           </div>
         );
-      }
+      },
     },
     {
       title: 'Precio ARS',
       key: 'price_ars',
       width: 140,
       render: (item: SaleItemWithSellingPrice) => {
-        const formattedPrice = formatPriceWithExchange(
-          item.selling_price,
-          sale?.exchange_rate
-        );
+        const formattedPrice = formatPriceWithExchange(item.selling_price, sale?.exchange_rate);
         return <Text>{extractArsPrice(formattedPrice)}</Text>;
-      }
+      },
     },
     {
       title: 'Subtotal',
@@ -631,13 +603,10 @@ export default function EditSalePage() {
       render: (item: SaleItemWithSellingPrice) => {
         return (
           <Text strong>
-            {formatPriceWithExchange(
-              item.selling_price * item.quantity,
-              sale?.exchange_rate
-            )}
+            {formatPriceWithExchange(item.selling_price * item.quantity, sale?.exchange_rate)}
           </Text>
         );
-      }
+      },
     },
     {
       title: 'Acciones',
@@ -650,8 +619,8 @@ export default function EditSalePage() {
           onClick={() => handleRemoveItem(index)}
           size="small"
         />
-      )
-    }
+      ),
+    },
   ];
 
   if (isLoading) {
@@ -675,18 +644,17 @@ export default function EditSalePage() {
                     onChange={handleCustomerChange}
                     value={
                       selectedCustomerId
-                        ? customers.find((c) => c.id === selectedCustomerId)
-                            ?.name
+                        ? customers.find(c => c.id === selectedCustomerId)?.name
                         : undefined
                     }
                     style={{ width: '100%' }}
                     options={[
                       { value: '', label: 'Sin cliente' },
                       { value: 'new', label: '+ Crear nuevo cliente' },
-                      ...customers.map((customer) => ({
+                      ...customers.map(customer => ({
                         value: String(customer.id),
-                        label: customer.name
-                      }))
+                        label: customer.name,
+                      })),
                     ]}
                     filterOption={(inputValue, option) =>
                       option?.label
@@ -701,10 +669,7 @@ export default function EditSalePage() {
                 </div>
               </Col>
               <Col>
-                <Button
-                  icon={<ArrowLeftOutlined />}
-                  onClick={() => router.push('/sales')}
-                >
+                <Button icon={<ArrowLeftOutlined />} onClick={() => router.push('/sales')}>
                   Volver
                 </Button>
               </Col>
@@ -716,7 +681,7 @@ export default function EditSalePage() {
                   padding: 16,
                   background: '#f5f5f5',
                   borderRadius: 4,
-                  marginTop: 16
+                  marginTop: 16,
                 }}
               >
                 <Title level={5} style={{ marginBottom: 16 }}>
@@ -729,9 +694,7 @@ export default function EditSalePage() {
                       <Input
                         placeholder="Nombre del cliente"
                         value={newCustomerData?.name || ''}
-                        onChange={(e) =>
-                          handleNewCustomerInputChange('name', e.target.value)
-                        }
+                        onChange={e => handleNewCustomerInputChange('name', e.target.value)}
                       />
                     </div>
                   </Col>
@@ -741,12 +704,7 @@ export default function EditSalePage() {
                       <Input
                         placeholder="Número de WhatsApp"
                         value={newCustomerData?.whatsapp || ''}
-                        onChange={(e) =>
-                          handleNewCustomerInputChange(
-                            'whatsapp',
-                            e.target.value
-                          )
-                        }
+                        onChange={e => handleNewCustomerInputChange('whatsapp', e.target.value)}
                         prefix={<WhatsAppOutlined />}
                       />
                     </div>
@@ -757,12 +715,7 @@ export default function EditSalePage() {
                       <Input
                         placeholder="Usuario de Instagram"
                         value={newCustomerData?.instagram || ''}
-                        onChange={(e) =>
-                          handleNewCustomerInputChange(
-                            'instagram',
-                            e.target.value
-                          )
-                        }
+                        onChange={e => handleNewCustomerInputChange('instagram', e.target.value)}
                         prefix={<InstagramOutlined />}
                       />
                     </div>
@@ -773,12 +726,7 @@ export default function EditSalePage() {
                       <Input
                         placeholder="Usuario o URL de Facebook"
                         value={newCustomerData?.facebook || ''}
-                        onChange={(e) =>
-                          handleNewCustomerInputChange(
-                            'facebook',
-                            e.target.value
-                          )
-                        }
+                        onChange={e => handleNewCustomerInputChange('facebook', e.target.value)}
                         prefix={<FacebookOutlined />}
                       />
                     </div>
@@ -795,7 +743,7 @@ export default function EditSalePage() {
                 <InputNumber
                   min={1}
                   value={quantity}
-                  onChange={(value) => setQuantity(value || 1)}
+                  onChange={value => setQuantity(value || 1)}
                   style={{ width: '100%' }}
                 />
               </Col>
@@ -809,15 +757,13 @@ export default function EditSalePage() {
                   showSearch
                   filterOption={(input, option) =>
                     option?.children
-                      ? String(option.children)
-                          .toLowerCase()
-                          .includes(input.toLowerCase())
+                      ? String(option.children).toLowerCase().includes(input.toLowerCase())
                       : false
                   }
                 >
                   {products
-                    .filter((product) => product.stock > 0)
-                    .map((product) => (
+                    .filter(product => product.stock > 0)
+                    .map(product => (
                       <Option key={product.id} value={product.id}>
                         {product.name} -{' '}
                         {formatPriceWithExchange(
@@ -838,7 +784,7 @@ export default function EditSalePage() {
                     step={0.01}
                     precision={2}
                     value={selectedProductPrice}
-                    onChange={(value) => setSelectedProductPrice(value || 0)}
+                    onChange={value => setSelectedProductPrice(value || 0)}
                     prefix="U$"
                   />
                 </div>
@@ -849,13 +795,9 @@ export default function EditSalePage() {
                   <Input
                     style={{ width: '100%' }}
                     value={(() => {
-                      if (!selectedProductPrice || !sale?.exchange_rate)
-                        return 'AR$ 0.00';
+                      if (!selectedProductPrice || !sale?.exchange_rate) return 'AR$ 0.00';
                       return extractArsPrice(
-                        formatPriceWithExchange(
-                          selectedProductPrice,
-                          sale.exchange_rate
-                        )
+                        formatPriceWithExchange(selectedProductPrice, sale.exchange_rate)
                       );
                     })()}
                     disabled
@@ -889,9 +831,7 @@ export default function EditSalePage() {
                 dataSource={saleItems}
                 columns={columns}
                 pagination={false}
-                rowKey={(record: SaleItemWithSellingPrice) =>
-                  `${record.product_id}`
-                }
+                rowKey={(record: SaleItemWithSellingPrice) => `${record.product_id}`}
                 bordered
               />
             )}
@@ -905,7 +845,7 @@ export default function EditSalePage() {
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
-                  marginBottom: 8
+                  marginBottom: 8,
                 }}
               >
                 <Text>Productos:</Text>
@@ -915,20 +855,18 @@ export default function EditSalePage() {
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
-                  marginBottom: 8
+                  marginBottom: 8,
                 }}
               >
                 <Text>Items totales:</Text>
-                <Text>
-                  {saleItems.reduce((acc, item) => acc + item.quantity, 0)}
-                </Text>
+                <Text>{saleItems.reduce((acc, item) => acc + item.quantity, 0)}</Text>
               </div>
 
               <div style={{ marginTop: 16, marginBottom: 16 }}>
                 <Text strong>Medio de Pago:</Text>
                 <Radio.Group
                   value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  onChange={e => setPaymentMethod(e.target.value)}
                   style={{ display: 'flex', marginTop: 8 }}
                 >
                   <Radio value="efectivo">Efectivo</Radio>
@@ -942,7 +880,7 @@ export default function EditSalePage() {
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
-                  marginBottom: 8
+                  marginBottom: 8,
                 }}
               >
                 <Text strong>Total USD:</Text>
@@ -952,12 +890,7 @@ export default function EditSalePage() {
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text strong>Total ARS:</Text>
                 <Text strong style={{ color: '#52c41a', fontSize: 18 }}>
-                  {extractArsPrice(
-                    formatPriceWithExchange(
-                      calculateTotal(),
-                      sale?.exchange_rate
-                    )
-                  )}
+                  {extractArsPrice(formatPriceWithExchange(calculateTotal(), sale?.exchange_rate))}
                 </Text>
               </div>
             </div>

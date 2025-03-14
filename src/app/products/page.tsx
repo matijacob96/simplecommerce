@@ -19,7 +19,7 @@ import {
   Card,
   Image,
   Upload,
-  Pagination
+  Pagination,
 } from 'antd';
 import {
   PlusOutlined,
@@ -29,7 +29,7 @@ import {
   InfoCircleOutlined,
   LinkOutlined,
   CloseCircleOutlined,
-  LoadingOutlined
+  LoadingOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { InputRef } from 'antd/es/input';
@@ -38,7 +38,7 @@ import {
   calculateUsdPrice,
   calculateArsPrice,
   formatUsdPrice,
-  formatArsPrice
+  formatArsPrice,
 } from '@/utils/priceUtils';
 import type { TablePaginationConfig } from 'antd/es/table';
 import type { SorterResult } from 'antd/es/table/interface';
@@ -91,19 +91,14 @@ export default function ProductsPage() {
   const searchInputRef = useRef<InputRef>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [defaultProfitMargin, setDefaultProfitMargin] = useState<number>(0.2);
-  const [selectedCategoryMargin, setSelectedCategoryMargin] =
-    useState<number>(defaultProfitMargin);
+  const [selectedCategoryMargin, setSelectedCategoryMargin] = useState<number>(defaultProfitMargin);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [selectedCategoryName, setSelectedCategoryName] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [shouldClearImage, setShouldClearImage] = useState(false);
-  const [calculatedUsdPrice, setCalculatedUsdPrice] = useState<number | null>(
-    null
-  );
-  const [calculatedArsPrice, setCalculatedArsPrice] = useState<number | null>(
-    null
-  );
+  const [calculatedUsdPrice, setCalculatedUsdPrice] = useState<number | null>(null);
+  const [calculatedArsPrice, setCalculatedArsPrice] = useState<number | null>(null);
 
   // Estados para acciones en masa
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
@@ -122,7 +117,7 @@ export default function ProductsPage() {
     order: 'ascend' | 'descend' | null;
   }>({
     columnKey: 'id',
-    order: 'ascend'
+    order: 'ascend',
   });
 
   // Efecto para manejo del montaje/desmontaje
@@ -151,16 +146,13 @@ export default function ProductsPage() {
 
   // Efecto para cargar datos iniciales
   useEffect(() => {
-    Promise.all([
-      fetchProducts(),
-      fetchCategories(),
-      fetchDolarBlue(),
-      fetchSettings()
-    ]).then(() => {
-      if (isMounted.current) {
-        setLoading(false);
+    Promise.all([fetchProducts(), fetchCategories(), fetchDolarBlue(), fetchSettings()]).then(
+      () => {
+        if (isMounted.current) {
+          setLoading(false);
+        }
       }
-    });
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -222,31 +214,27 @@ export default function ProductsPage() {
       if (Array.isArray(sorter)) {
         // Si hay múltiples ordenamientos, tomamos el primero
         if (sorter.length > 0 && sorter[0]) {
-          const columnKey =
-            typeof sorter[0].columnKey === 'string'
-              ? sorter[0].columnKey
-              : null;
+          const columnKey = typeof sorter[0].columnKey === 'string' ? sorter[0].columnKey : null;
           const order = sorter[0].order || null;
 
           safeSetState(setSortedInfo, {
             columnKey,
-            order: order as 'ascend' | 'descend' | null
+            order: order as 'ascend' | 'descend' | null,
           });
         } else {
           safeSetState(setSortedInfo, {
             columnKey: null,
-            order: null
+            order: null,
           } as { columnKey: string | null; order: 'ascend' | 'descend' | null });
         }
       } else {
         // Un solo ordenamiento
-        const columnKey =
-          typeof sorter.columnKey === 'string' ? sorter.columnKey : null;
+        const columnKey = typeof sorter.columnKey === 'string' ? sorter.columnKey : null;
         const order = sorter.order || null;
 
         safeSetState(setSortedInfo, {
           columnKey,
-          order: order as 'ascend' | 'descend' | null
+          order: order as 'ascend' | 'descend' | null,
         });
       }
     } catch (e) {
@@ -366,7 +354,7 @@ export default function ProductsPage() {
     if (edit && product) {
       // Buscar el nombre de la categoría si existe
       if (product.category_id) {
-        const category = categories.find((c) => c.id === product.category_id);
+        const category = categories.find(c => c.id === product.category_id);
         if (category) {
           categoryName = category.name || '';
           categoryMargin = getCategoryMargin(product.category_id);
@@ -374,8 +362,7 @@ export default function ProductsPage() {
       } else if (product.category?.name) {
         categoryName = product.category.name;
         categoryMargin =
-          product.category.profit_margin !== null &&
-          product.category.profit_margin !== undefined
+          product.category.profit_margin !== null && product.category.profit_margin !== undefined
             ? Number(product.category.profit_margin)
             : defaultProfitMargin;
       }
@@ -402,23 +389,17 @@ export default function ProductsPage() {
         name: edit && product ? product.name : '',
         price: edit && product ? product.price : '',
         stock: edit && product ? product.stock : '',
-        category_id: categoryName
+        category_id: categoryName,
       });
 
       // Después de establecer los valores en el formulario, calcular los precios
       if (edit && product) {
         // Convertir a número si es string
         const numericPrice =
-          typeof product.price === 'string'
-            ? parseFloat(product.price)
-            : product.price;
+          typeof product.price === 'string' ? parseFloat(product.price) : product.price;
 
         if (!isNaN(numericPrice)) {
-          const usdPrice = calculateUsdPrice(
-            numericPrice,
-            categoryMargin,
-            defaultProfitMargin
-          );
+          const usdPrice = calculateUsdPrice(numericPrice, categoryMargin, defaultProfitMargin);
           setCalculatedUsdPrice(usdPrice);
 
           const arsPrice = calculateArsPrice(usdPrice, dolarBlue?.venta);
@@ -441,11 +422,9 @@ export default function ProductsPage() {
 
   // Función para obtener el margen de ganancia según la categoría
   const getCategoryMargin = (categoryId: number | null | undefined): number => {
-    if (categoryId === null || categoryId === undefined)
-      return defaultProfitMargin;
-    const category = categories.find((c) => c.id === categoryId);
-    return category?.profit_margin !== null &&
-      category?.profit_margin !== undefined
+    if (categoryId === null || categoryId === undefined) return defaultProfitMargin;
+    const category = categories.find(c => c.id === categoryId);
+    return category?.profit_margin !== null && category?.profit_margin !== undefined
       ? Number(category.profit_margin)
       : defaultProfitMargin;
   };
@@ -470,9 +449,7 @@ export default function ProductsPage() {
           categoryId = possibleId;
         } else {
           // Es un nombre, buscar el ID correspondiente
-          const category = categories.find(
-            (c) => c.name === values.category_id
-          );
+          const category = categories.find(c => c.name === values.category_id);
           categoryId = category?.id || null;
         }
 
@@ -480,9 +457,7 @@ export default function ProductsPage() {
       }
 
       const url =
-        isEditing && currentProduct
-          ? `/api/products/${currentProduct.id}`
-          : '/api/products';
+        isEditing && currentProduct ? `/api/products/${currentProduct.id}` : '/api/products';
 
       // Preparar datos para enviar
       type ProductFormData = {
@@ -499,7 +474,7 @@ export default function ProductsPage() {
       const productData: ProductFormData = {
         ...values,
         id: isEditing && currentProduct ? currentProduct.id : undefined,
-        clearImage: shouldClearImage
+        clearImage: shouldClearImage,
       };
 
       // Si se ingresó una URL de imagen directamente
@@ -514,15 +489,14 @@ export default function ProductsPage() {
         formData.append('file', fileList[0].originFileObj);
 
         // Verificar si el ID existe, de lo contrario usar un placeholder
-        const productId =
-          productData.id !== undefined ? productData.id.toString() : 'new';
+        const productId = productData.id !== undefined ? productData.id.toString() : 'new';
         formData.append('productId', productId);
 
         // Enviar a la API de imágenes
         setUploading(true);
         const imageResponse = await fetch('/api/images', {
           method: 'POST',
-          body: formData
+          body: formData,
         });
 
         if (imageResponse.ok) {
@@ -534,12 +508,12 @@ export default function ProductsPage() {
           await fetch(`/api/products/${productData.id}`, {
             method: 'PUT',
             headers: {
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
             },
             body: JSON.stringify({
               id: productData.id,
-              image: imageData.url
-            })
+              image: imageData.url,
+            }),
           });
         } else {
           const errorData = await imageResponse.json();
@@ -553,9 +527,9 @@ export default function ProductsPage() {
       const response = await fetch(url, {
         method: isEditing ? 'PUT' : 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(productData)
+        body: JSON.stringify(productData),
       });
 
       if (!response.ok) {
@@ -565,16 +539,12 @@ export default function ProductsPage() {
 
       const savedProduct = await response.json();
 
-      message.success(
-        `Producto ${isEditing ? 'actualizado' : 'creado'} correctamente`
-      );
+      message.success(`Producto ${isEditing ? 'actualizado' : 'creado'} correctamente`);
       setIsModalOpen(false);
 
       // Actualizar la lista de productos
       if (isEditing) {
-        setProducts(
-          products.map((p) => (p.id === savedProduct.id ? savedProduct : p))
-        );
+        setProducts(products.map(p => (p.id === savedProduct.id ? savedProduct : p)));
       } else {
         setProducts([...products, savedProduct]);
       }
@@ -585,8 +555,7 @@ export default function ProductsPage() {
       setImageUrl(null);
       setShouldClearImage(false);
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Error desconocido';
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       message.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -599,8 +568,7 @@ export default function ProductsPage() {
 
     if (costPrice) {
       // Convertir a número si es string
-      const numericPrice =
-        typeof costPrice === 'string' ? parseFloat(costPrice) : costPrice;
+      const numericPrice = typeof costPrice === 'string' ? parseFloat(costPrice) : costPrice;
 
       if (isNaN(numericPrice)) {
         setCalculatedUsdPrice(null);
@@ -608,11 +576,7 @@ export default function ProductsPage() {
         return;
       }
 
-      const usdPrice = calculateUsdPrice(
-        numericPrice,
-        selectedCategoryMargin,
-        defaultProfitMargin
-      );
+      const usdPrice = calculateUsdPrice(numericPrice, selectedCategoryMargin, defaultProfitMargin);
       setCalculatedUsdPrice(usdPrice);
 
       const arsPrice = calculateArsPrice(usdPrice, dolarBlue?.venta);
@@ -627,7 +591,7 @@ export default function ProductsPage() {
   const handleDelete = async (id: number) => {
     try {
       const response = await fetch(`/api/products/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       });
 
       if (!response.ok) {
@@ -635,13 +599,10 @@ export default function ProductsPage() {
         throw new Error(errorData.error || 'Error al eliminar el producto');
       }
 
-      setProducts((prevProducts) => prevProducts.filter((p) => p.id !== id));
+      setProducts(prevProducts => prevProducts.filter(p => p.id !== id));
       message.success('Producto eliminado correctamente');
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : 'Error al eliminar el producto';
+      const errorMessage = error instanceof Error ? error.message : 'Error al eliminar el producto';
       message.error(errorMessage);
     }
   };
@@ -678,16 +639,14 @@ export default function ProductsPage() {
       setImageUrl(null);
       return true;
     },
-    listType: 'picture-card'
+    listType: 'picture-card',
   };
 
   // Obtener productos ordenados y filtrados
   const getTableData = () => {
     // Primero filtramos los productos por texto de búsqueda
     const filteredProducts = products.filter(
-      (product) =>
-        searchText === '' ||
-        product.name.toLowerCase().includes(searchText.toLowerCase())
+      product => searchText === '' || product.name.toLowerCase().includes(searchText.toLowerCase())
     );
 
     // Luego ordenamos los productos filtrados según el criterio de ordenamiento
@@ -701,24 +660,23 @@ export default function ProductsPage() {
 
       // Según la columna ordenamos de forma diferente
       switch (columnKey) {
-        case 'id':
+        case 'id': {
           const idA = typeof a.id === 'string' ? parseInt(a.id, 10) : a.id;
           const idB = typeof b.id === 'string' ? parseInt(b.id, 10) : b.id;
           return order === 'ascend' ? idA - idB : idB - idA;
+        }
 
-        case 'name':
-          return order === 'ascend'
-            ? a.name.localeCompare(b.name)
-            : b.name.localeCompare(a.name);
+        case 'name': {
+          return order === 'ascend' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+        }
 
-        case 'cost':
-          const priceA =
-            typeof a.price === 'string' ? parseFloat(a.price) : a.price;
-          const priceB =
-            typeof b.price === 'string' ? parseFloat(b.price) : b.price;
+        case 'cost': {
+          const priceA = typeof a.price === 'string' ? parseFloat(a.price) : a.price;
+          const priceB = typeof b.price === 'string' ? parseFloat(b.price) : b.price;
           return order === 'ascend' ? priceA - priceB : priceB - priceA;
+        }
 
-        case 'price_usd':
+        case 'price_usd': {
           const usdA = calculateUsdPrice(
             typeof a.price === 'string' ? parseFloat(a.price) : a.price,
             a.category?.profit_margin,
@@ -730,8 +688,9 @@ export default function ProductsPage() {
             defaultProfitMargin
           );
           return order === 'ascend' ? usdA - usdB : usdB - usdA;
+        }
 
-        case 'price_ars':
+        case 'price_ars': {
           const usdPrice1 = calculateUsdPrice(
             typeof a.price === 'string' ? parseFloat(a.price) : a.price,
             a.category?.profit_margin,
@@ -745,16 +704,17 @@ export default function ProductsPage() {
           const arsA = calculateArsPrice(usdPrice1, dolarBlue?.venta);
           const arsB = calculateArsPrice(usdPrice2, dolarBlue?.venta);
           return order === 'ascend' ? arsA - arsB : arsB - arsA;
+        }
 
-        case 'stock':
+        case 'stock': {
           return order === 'ascend' ? a.stock - b.stock : b.stock - a.stock;
+        }
 
-        case 'category':
+        case 'category': {
           const catA = a.category?.name || '';
           const catB = b.category?.name || '';
-          return order === 'ascend'
-            ? catA.localeCompare(catB)
-            : catB.localeCompare(catA);
+          return order === 'ascend' ? catA.localeCompare(catB) : catB.localeCompare(catA);
+        }
 
         default:
           return 0;
@@ -762,10 +722,7 @@ export default function ProductsPage() {
     });
 
     // Finalmente aplicamos paginación
-    return sortedProducts.slice(
-      (currentPage - 1) * pageSize,
-      currentPage * pageSize
-    );
+    return sortedProducts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   };
 
   // Definición de las columnas
@@ -775,14 +732,14 @@ export default function ProductsPage() {
       dataIndex: 'id',
       key: 'id',
       width: 80,
-      sorter: true
+      sorter: true,
     },
     {
       title: 'Nombre',
       dataIndex: 'name',
       key: 'name',
       width: 200,
-      sorter: true
+      sorter: true,
     },
     {
       title: 'Costo',
@@ -793,8 +750,7 @@ export default function ProductsPage() {
       render: (price: number | string | undefined) => {
         if (price === null || price === undefined) return '-';
         // Convertir a número si viene como string
-        const numericPrice =
-          typeof price === 'string' ? parseFloat(price) : price;
+        const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
         // Verificar si es un número válido
         return !isNaN(numericPrice) ? (
           <Text strong style={{ color: '#000' }}>
@@ -803,7 +759,7 @@ export default function ProductsPage() {
         ) : (
           '-'
         );
-      }
+      },
     },
     {
       title: 'Precio USD',
@@ -813,14 +769,10 @@ export default function ProductsPage() {
       render: (_, record) => {
         // Convertir price a número si es string
         const numericPrice =
-          typeof record.price === 'string'
-            ? parseFloat(record.price)
-            : record.price;
+          typeof record.price === 'string' ? parseFloat(record.price) : record.price;
 
         if (isNaN(numericPrice))
-          return (
-            <Text style={{ color: '#1890ff', fontWeight: 'bold' }}>-</Text>
-          );
+          return <Text style={{ color: '#1890ff', fontWeight: 'bold' }}>-</Text>;
 
         const usdPrice = calculateUsdPrice(
           numericPrice,
@@ -828,11 +780,9 @@ export default function ProductsPage() {
           defaultProfitMargin
         );
         return (
-          <Text style={{ color: '#1890ff', fontWeight: 'bold' }}>
-            {formatUsdPrice(usdPrice)}
-          </Text>
+          <Text style={{ color: '#1890ff', fontWeight: 'bold' }}>{formatUsdPrice(usdPrice)}</Text>
         );
-      }
+      },
     },
     {
       title: 'Precio ARS',
@@ -842,14 +792,10 @@ export default function ProductsPage() {
       render: (_, record) => {
         // Convertir price a número si es string
         const numericPrice =
-          typeof record.price === 'string'
-            ? parseFloat(record.price)
-            : record.price;
+          typeof record.price === 'string' ? parseFloat(record.price) : record.price;
 
         if (isNaN(numericPrice))
-          return (
-            <Text style={{ color: '#52c41a', fontWeight: 'bold' }}>-</Text>
-          );
+          return <Text style={{ color: '#52c41a', fontWeight: 'bold' }}>-</Text>;
 
         const usdPrice = calculateUsdPrice(
           numericPrice,
@@ -861,21 +807,21 @@ export default function ProductsPage() {
             {formatArsPrice(calculateArsPrice(usdPrice, dolarBlue?.venta))}
           </Text>
         );
-      }
+      },
     },
     {
       title: 'Stock',
       dataIndex: 'stock',
       key: 'stock',
       width: 100,
-      sorter: true
+      sorter: true,
     },
     {
       title: 'Categoría',
       key: 'category',
       width: 150,
       sorter: true,
-      render: (_, record) => record.category?.name || '-'
+      render: (_, record) => record.category?.name || '-',
     },
     {
       title: 'Imagen',
@@ -888,7 +834,7 @@ export default function ProductsPage() {
             height: 80,
             display: 'flex',
             justifyContent: 'center',
-            alignItems: 'center'
+            alignItems: 'center',
           }}
         >
           {record.image ? (
@@ -899,7 +845,7 @@ export default function ProductsPage() {
               height={80}
               style={{
                 objectFit: 'cover',
-                borderRadius: '4px'
+                borderRadius: '4px',
               }}
               fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iOCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iI2Q5ZDlkOSI+SW1hZ2VuIG5vIGRpc3BvbmlibGU8L3RleHQ+PC9zdmc+"
             />
@@ -912,14 +858,14 @@ export default function ProductsPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 background: '#f5f5f5',
-                borderRadius: '4px'
+                borderRadius: '4px',
               }}
             >
               <PlusOutlined style={{ color: '#d9d9d9' }} />
             </div>
           )}
         </div>
-      )
+      ),
     },
     {
       title: 'Acciones',
@@ -928,11 +874,7 @@ export default function ProductsPage() {
       render: (_, record) => (
         <Space>
           <Tooltip title="Editar">
-            <Button
-              icon={<EditOutlined />}
-              size="small"
-              onClick={() => showModal(true, record)}
-            />
+            <Button icon={<EditOutlined />} size="small" onClick={() => showModal(true, record)} />
           </Tooltip>
           <Tooltip title="Eliminar">
             <Popconfirm
@@ -946,8 +888,8 @@ export default function ProductsPage() {
             </Popconfirm>
           </Tooltip>
         </Space>
-      )
-    }
+      ),
+    },
   ];
 
   const uploadButton = (
@@ -969,15 +911,15 @@ export default function ProductsPage() {
       const response = await fetch('/api/products/bulk', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           action: 'update',
           ids: selectedRowKeys,
           data: {
-            category_id: bulkCategoryId
-          }
-        })
+            category_id: bulkCategoryId,
+          },
+        }),
       });
 
       if (!response.ok) {
@@ -1010,12 +952,12 @@ export default function ProductsPage() {
       const response = await fetch('/api/products/bulk', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           action: 'delete',
-          ids: selectedRowKeys
-        })
+          ids: selectedRowKeys,
+        }),
       });
 
       if (!response.ok) {
@@ -1049,18 +991,18 @@ export default function ProductsPage() {
         key: 'all-data',
         text: 'Seleccionar todos los productos',
         onSelect: () => {
-          const allKeys = products.map((item) => item.id);
+          const allKeys = products.map(item => item.id);
           setSelectedRowKeys(allKeys);
-        }
+        },
       },
       {
         key: 'clear-all',
         text: 'Desmarcar todo',
         onSelect: () => {
           setSelectedRowKeys([]);
-        }
-      }
-    ]
+        },
+      },
+    ],
   };
 
   return (
@@ -1071,7 +1013,7 @@ export default function ProductsPage() {
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
       }}
     >
       <Card
@@ -1085,7 +1027,7 @@ export default function ProductsPage() {
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          maxHeight: 'calc(100vh - 112px)'
+          maxHeight: 'calc(100vh - 112px)',
         }}
         styles={{
           body: {
@@ -1093,8 +1035,8 @@ export default function ProductsPage() {
             padding: '16px',
             overflow: 'hidden',
             display: 'flex',
-            flexDirection: 'column'
-          }
+            flexDirection: 'column',
+          },
         }}
         actions={[
           <div
@@ -1104,34 +1046,32 @@ export default function ProductsPage() {
             <Pagination
               total={
                 products.filter(
-                  (product) =>
+                  product =>
                     searchText === '' ||
-                    product.name
-                      .toLowerCase()
-                      .includes(searchText.toLowerCase())
+                    product.name.toLowerCase().includes(searchText.toLowerCase())
                 ).length
               }
-              showTotal={(total) => `Total ${total} productos`}
+              showTotal={total => `Total ${total} productos`}
               current={currentPage}
               onChange={handlePageChange}
               pageSize={pageSize}
               showSizeChanger={false}
             />
-          </div>
+          </div>,
         ]}
       >
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
-            marginBottom: 16
+            marginBottom: 16,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Input
               placeholder="Buscar por nombre"
               value={searchText}
-              onChange={(e) => {
+              onChange={e => {
                 if (isMounted.current) {
                   setSearchText(e.target.value);
                 }
@@ -1140,20 +1080,13 @@ export default function ProductsPage() {
               prefix={<SearchOutlined />}
               ref={searchInputRef}
             />
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => showModal()}
-            >
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => showModal()}>
               Nuevo Producto
             </Button>
 
             {selectedRowKeys.length > 0 && (
               <>
-                <Button
-                  onClick={() => setBulkCategoryModalOpen(true)}
-                  icon={<EditOutlined />}
-                >
+                <Button onClick={() => setBulkCategoryModalOpen(true)} icon={<EditOutlined />}>
                   Editar Categorías ({selectedRowKeys.length})
                 </Button>
 
@@ -1176,10 +1109,9 @@ export default function ProductsPage() {
         <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
           <Table
             rowSelection={rowSelection}
-            columns={columns.map((col) => ({
+            columns={columns.map(col => ({
               ...col,
-              sortOrder:
-                sortedInfo.columnKey === col.key ? sortedInfo.order : null
+              sortOrder: sortedInfo.columnKey === col.key ? sortedInfo.order : null,
             }))}
             dataSource={getTableData()}
             rowKey="id"
@@ -1187,7 +1119,7 @@ export default function ProductsPage() {
             pagination={false}
             scroll={{
               y: 'calc(100vh - 370px)',
-              scrollToFirstRowOnChange: true
+              scrollToFirstRowOnChange: true,
             }}
             style={{ height: '100%' }}
             className="products-table"
@@ -1219,7 +1151,7 @@ export default function ProductsPage() {
                         style={{
                           maxWidth: '100%',
                           maxHeight: '200px',
-                          objectFit: 'contain'
+                          objectFit: 'contain',
                         }}
                       />
                       <Button
@@ -1261,9 +1193,7 @@ export default function ProductsPage() {
                         placeholder="https://ejemplo.com/imagen.jpg"
                         suffix={
                           <Tooltip title="Ingresa la URL de una imagen externa">
-                            <InfoCircleOutlined
-                              style={{ color: 'rgba(0,0,0,.45)' }}
-                            />
+                            <InfoCircleOutlined style={{ color: 'rgba(0,0,0,.45)' }} />
                           </Tooltip>
                         }
                         disabled={!!imageUrl || fileList.length > 0}
@@ -1283,9 +1213,7 @@ export default function ProductsPage() {
                       />
                     </Form.Item>
                     <div style={{ marginTop: 4 }}>
-                      <Text type="secondary">
-                        O ingresa la URL de una imagen
-                      </Text>
+                      <Text type="secondary">O ingresa la URL de una imagen</Text>
                     </div>
                   </div>
                 )}
@@ -1299,8 +1227,8 @@ export default function ProductsPage() {
                 rules={[
                   {
                     required: true,
-                    message: 'Por favor ingrese el nombre del producto'
-                  }
+                    message: 'Por favor ingrese el nombre del producto',
+                  },
                 ]}
               >
                 <Input />
@@ -1314,13 +1242,13 @@ export default function ProductsPage() {
                 <AutoComplete
                   value={selectedCategoryName}
                   style={{ width: '100%' }}
-                  options={categories.map((c) => ({ value: c.name }))}
+                  options={categories.map(c => ({ value: c.name }))}
                   placeholder="Seleccione o busque una categoría"
-                  onChange={(value) => {
+                  onChange={value => {
                     setSelectedCategoryName(value);
 
                     // Buscar la categoría para obtener su ID y margen
-                    const category = categories.find((c) => c.name === value);
+                    const category = categories.find(c => c.name === value);
                     if (category) {
                       form.setFieldsValue({ category_id: category.id });
 
@@ -1337,9 +1265,7 @@ export default function ProductsPage() {
                   }}
                   filterOption={(inputValue, option) =>
                     option
-                      ? option.value
-                          .toLowerCase()
-                          .indexOf(inputValue.toLowerCase()) !== -1
+                      ? option.value.toLowerCase().indexOf(inputValue.toLowerCase()) !== -1
                       : false
                   }
                 />
@@ -1363,15 +1289,15 @@ export default function ProductsPage() {
                     rules={[
                       {
                         required: true,
-                        message: 'Por favor ingrese el precio base'
-                      }
+                        message: 'Por favor ingrese el precio base',
+                      },
                     ]}
                   >
                     <InputNumber
                       style={{ width: '100%' }}
                       min={0}
                       precision={2}
-                      formatter={(value) => `$ ${value}`}
+                      formatter={value => `$ ${value}`}
                       onChange={() => updateCalculatedPrices()}
                     />
                   </Form.Item>
@@ -1387,15 +1313,9 @@ export default function ProductsPage() {
                       </span>
                     }
                     name="stock"
-                    rules={[
-                      { required: true, message: 'Por favor ingrese el stock' }
-                    ]}
+                    rules={[{ required: true, message: 'Por favor ingrese el stock' }]}
                   >
-                    <InputNumber
-                      style={{ width: '100%' }}
-                      min={0}
-                      precision={0}
-                    />
+                    <InputNumber style={{ width: '100%' }} min={0} precision={0} />
                   </Form.Item>
                 </Col>
               </Row>
@@ -1406,7 +1326,7 @@ export default function ProductsPage() {
                   padding: '12px 16px',
                   background: '#f5f5f5',
                   borderRadius: '4px',
-                  marginBottom: 16
+                  marginBottom: 16,
                 }}
               >
                 <div style={{ marginBottom: 8 }}>
@@ -1418,9 +1338,7 @@ export default function ProductsPage() {
                       <Text type="secondary">Margen de ganancia:</Text>
                     </div>
                     <div>
-                      <Text strong>
-                        {formatProfitMargin(selectedCategoryMargin)}
-                      </Text>
+                      <Text strong>{formatProfitMargin(selectedCategoryMargin)}</Text>
                     </div>
                   </Col>
                   <Col span={12}>
@@ -1429,9 +1347,7 @@ export default function ProductsPage() {
                     </div>
                     <div>
                       <Text strong>
-                        {calculatedUsdPrice !== null
-                          ? formatUsdPrice(calculatedUsdPrice)
-                          : '-'}
+                        {calculatedUsdPrice !== null ? formatUsdPrice(calculatedUsdPrice) : '-'}
                       </Text>
                     </div>
                   </Col>
@@ -1442,19 +1358,13 @@ export default function ProductsPage() {
                       <Text type="secondary">Precio estimado en ARS:</Text>
                     </div>
                     <div>
-                      <Text
-                        strong
-                        style={{ fontSize: '16px', color: '#52c41a' }}
-                      >
+                      <Text strong style={{ fontSize: '16px', color: '#52c41a' }}>
                         {calculatedArsPrice !== null && dolarBlue
                           ? formatArsPrice(calculatedArsPrice)
                           : '-'}
                       </Text>
                       {dolarBlue && (
-                        <Text
-                          type="secondary"
-                          style={{ marginLeft: 8, fontSize: '12px' }}
-                        >
+                        <Text type="secondary" style={{ marginLeft: 8, fontSize: '12px' }}>
                           (Cotización: {formatArsPrice(dolarBlue.venta)})
                         </Text>
                       )}
@@ -1483,19 +1393,15 @@ export default function ProductsPage() {
           <AutoComplete
             value={bulkCategoryName}
             style={{ width: '100%' }}
-            options={categories.map((c) => ({ value: c.name, id: c.id }))}
+            options={categories.map(c => ({ value: c.name, id: c.id }))}
             placeholder="Seleccione o busque una categoría"
-            onChange={(value) => setBulkCategoryName(value)}
+            onChange={value => setBulkCategoryName(value)}
             onSelect={(value, option: { id: number; value: string }) => {
               setBulkCategoryId(option.id);
               setBulkCategoryName(value);
             }}
             filterOption={(inputValue, option) =>
-              option
-                ? option.value
-                    .toLowerCase()
-                    .indexOf(inputValue.toLowerCase()) !== -1
-                : false
+              option ? option.value.toLowerCase().indexOf(inputValue.toLowerCase()) !== -1 : false
             }
           />
         </div>

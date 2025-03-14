@@ -1,23 +1,29 @@
-import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { products, shippingCost } = body;
+  const { products } = body;
 
   if (!products || !Array.isArray(products) || products.length === 0) {
-    return NextResponse.json({ error: "Debe haber al menos un producto." }, { status: 400 });
+    return NextResponse.json({ error: 'Debe haber al menos un producto.' }, { status: 400 });
   }
 
   try {
-    const totalProductCost = products.reduce((acc, product) => acc + (product.quantity * product.cost), 0);
+    const totalProductCost = products.reduce(
+      (acc, product) => acc + product.quantity * product.cost,
+      0
+    );
     if (totalProductCost === 0) {
-      return NextResponse.json({ error: "El costo total de los productos no puede ser cero." }, { status: 400 });
+      return NextResponse.json(
+        { error: 'El costo total de los productos no puede ser cero.' },
+        { status: 400 }
+      );
     }
 
     for (const product of products) {
       if (!product.name || isNaN(parseInt(product.quantity)) || isNaN(parseFloat(product.cost))) {
-        return NextResponse.json({ error: "Datos de producto inválidos." }, { status: 400 });
+        return NextResponse.json({ error: 'Datos de producto inválidos.' }, { status: 400 });
       }
 
       // Usamos el costo unitario final que incluye el envío prorrateado
@@ -33,23 +39,23 @@ export async function POST(request: NextRequest) {
         if (categoryExists) {
           categoryId = parseInt(product.categoryId);
         }
-      } else if (product.categoryName && product.categoryName.trim() !== "") {
+      } else if (product.categoryName && product.categoryName.trim() !== '') {
         // Buscar si ya existe una categoría con ese nombre
         let category = await prisma.category.findFirst({
           where: { name: product.categoryName.trim() },
         });
-        
+
         if (!category) {
           // Crear la categoría si no existe
           category = await prisma.category.create({
             data: { name: product.categoryName.trim() },
           });
         }
-        
+
         categoryId = category.id;
       }
 
-      let existingProduct = await prisma.product.findFirst({
+      const existingProduct = await prisma.product.findFirst({
         where: { name: product.name },
         select: { id: true, stock: true },
       });
@@ -58,12 +64,12 @@ export async function POST(request: NextRequest) {
       if (!existingProduct) {
         // Crear producto nuevo con la categoría
         const newProduct = await prisma.product.create({
-          data: { 
-            name: product.name, 
-            stock: 0, 
-            price: finalUnitCost, 
+          data: {
+            name: product.name,
+            stock: 0,
+            price: finalUnitCost,
             image: product.imageUrl || null,
-            category_id: categoryId
+            category_id: categoryId,
           },
           select: { id: true, stock: true },
         });
@@ -82,21 +88,21 @@ export async function POST(request: NextRequest) {
       });
 
       const newStock = (existingProduct ? existingProduct.stock : 0) + parseInt(product.quantity);
-      
+
       // Actualizar el producto con el precio final (incluyendo el envío prorrateado) y categoría
       await prisma.product.update({
         where: { id: productId },
-        data: { 
-          stock: newStock, 
+        data: {
+          stock: newStock,
           price: finalUnitCost,
-          category_id: categoryId
+          category_id: categoryId,
         },
       });
     }
 
-    return NextResponse.json({ message: "Pedidos cargados exitosamente!" });
+    return NextResponse.json({ message: 'Pedidos cargados exitosamente!' });
   } catch (error) {
-    console.error("Error al procesar los pedidos:", error);
-    return NextResponse.json({ error: "Fallo al procesar los pedidos." }, { status: 500 });
+    console.error('Error al procesar los pedidos:', error);
+    return NextResponse.json({ error: 'Fallo al procesar los pedidos.' }, { status: 500 });
   }
 }

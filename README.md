@@ -1,4 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SimpleCommerce
+
+Aplicación de comercio electrónico simple para gestionar productos, ventas y clientes.
+
+## Características
+
+- Gestión de productos
+- Gestión de ventas
+- Gestión de clientes
+- Panel de control
+- Reportes
+
+## Configuración de desarrollo
+
+Este proyecto utiliza:
+
+- Next.js
+- Prisma
+- ESLint
+- Husky para pre-commit hooks
+
+## Comandos
+
+```bash
+# Desarrollo
+bun run dev
+
+# Construir el proyecto
+bun run build
+
+# Iniciar en producción
+bun run start
+
+# Linting
+bun run lint
+
+# Formatear código
+bun run format
+```
 
 ## Getting Started
 

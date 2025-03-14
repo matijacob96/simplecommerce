@@ -11,16 +11,12 @@ import { AuthProvider } from '@/lib/AuthContext';
 import { RouteGuard } from './components/RouteGuard';
 import { AppStateProvider } from '@/lib/AppStateContext';
 
-export default function RootLayout({
-  children
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body suppressHydrationWarning={true}>
         <AntdRegistry>
-          <ConfigProvider csp={{ nonce: 'simplecommerce-csp' }}>
+          <ConfigProvider theme={{ cssVar: true }}>
             <AuthProvider>
               <AppStateProvider>
                 <Toaster>
@@ -35,14 +31,10 @@ export default function RootLayout({
                               height: 'calc(100vh - 64px)',
                               display: 'flex',
                               justifyContent: 'center',
-                              alignItems: 'center'
+                              alignItems: 'center',
                             }}
                           >
-                            <Spin
-                              size="large"
-                              tip="Cargando aplicación..."
-                              fullscreen
-                            />
+                            <Spin size="large" tip="Cargando aplicación..." fullscreen />
                           </div>
                         }
                       >

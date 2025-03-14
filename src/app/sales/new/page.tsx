@@ -16,7 +16,7 @@ import {
   Col,
   Radio,
   Input,
-  AutoComplete
+  AutoComplete,
 } from 'antd';
 import {
   ShoppingCartOutlined,
@@ -28,7 +28,7 @@ import {
   FacebookOutlined,
   EditOutlined,
   CheckOutlined,
-  CloseOutlined
+  CloseOutlined,
 } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import { Customer, Product } from '../../../types';
@@ -36,7 +36,7 @@ import {
   formatUsdPrice,
   calculateSellingPrice,
   formatPriceWithExchange,
-  calculateArsPrice
+  calculateArsPrice,
 } from '../../../utils/priceUtils';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -73,11 +73,8 @@ export default function NewSalePage() {
   const [quantity, setQuantity] = useState<number>(1);
   const [exchangeRate, setExchangeRate] = useState<number | null>(null);
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
-  const [newCustomerData, setNewCustomerData] =
-    useState<NewCustomerData | null>(null);
-  const [selectedProductPrice, setSelectedProductPrice] = useState<
-    number | null
-  >(null);
+  const [newCustomerData, setNewCustomerData] = useState<NewCustomerData | null>(null);
+  const [selectedProductPrice, setSelectedProductPrice] = useState<number | null>(null);
 
   const router = useRouter();
   const { user } = useAuth();
@@ -138,7 +135,7 @@ export default function NewSalePage() {
   const handleProductSelect = (productId: number) => {
     setSelectedProduct(productId);
 
-    const product = products.find((p) => p.id === productId);
+    const product = products.find(p => p.id === productId);
     if (product) {
       const price = calculateSellingPrice(product);
       setSelectedProductPrice(price);
@@ -153,7 +150,7 @@ export default function NewSalePage() {
       return;
     }
 
-    const product = products.find((p) => p.id === selectedProduct);
+    const product = products.find(p => p.id === selectedProduct);
     if (!product) {
       message.warning('Producto no encontrado');
       return;
@@ -165,18 +162,13 @@ export default function NewSalePage() {
     }
 
     // Usar el precio editado si existe, de lo contrario calcular el predeterminado
-    const selling_price =
-      selectedProductPrice || calculateSellingPrice(product);
+    const selling_price = selectedProductPrice || calculateSellingPrice(product);
 
     // Calcular precio en ARS usando la función de priceUtils
-    const price_ars = exchangeRate
-      ? calculateArsPrice(selling_price, exchangeRate)
-      : 0;
+    const price_ars = exchangeRate ? calculateArsPrice(selling_price, exchangeRate) : 0;
 
     // Verificar si el producto ya está en la lista
-    const existingItemIndex = saleItems.findIndex(
-      (item) => item.product_id === selectedProduct
-    );
+    const existingItemIndex = saleItems.findIndex(item => item.product_id === selectedProduct);
     if (existingItemIndex >= 0) {
       const updatedItems = [...saleItems];
       const itemToUpdate = updatedItems[existingItemIndex];
@@ -203,8 +195,8 @@ export default function NewSalePage() {
           product,
           selling_price,
           price_ars,
-          custom_price: selectedProductPrice !== null // Marcar como personalizado si se editó el precio
-        }
+          custom_price: selectedProductPrice !== null, // Marcar como personalizado si se editó el precio
+        },
       ]);
     }
 
@@ -229,7 +221,7 @@ export default function NewSalePage() {
         name: '',
         whatsapp: null,
         instagram: null,
-        facebook: null
+        facebook: null,
       });
     } else if (value === null || value === '') {
       // Opción "Sin cliente"
@@ -248,7 +240,7 @@ export default function NewSalePage() {
     if (newCustomerData) {
       setNewCustomerData({
         ...newCustomerData,
-        [field]: value || null
+        [field]: value || null,
       });
     }
   };
@@ -312,9 +304,7 @@ export default function NewSalePage() {
 
     // Verificar stock disponible
     if (item.product.stock < newQuantity) {
-      message.warning(
-        `No hay suficiente stock (disponible: ${item.product.stock})`
-      );
+      message.warning(`No hay suficiente stock (disponible: ${item.product.stock})`);
       return;
     }
 
@@ -371,7 +361,7 @@ export default function NewSalePage() {
 
       // Preparar precios personalizados
       const custom_prices: Record<number, number> = {};
-      saleItems.forEach((item) => {
+      saleItems.forEach(item => {
         if (item.custom_price) {
           custom_prices[item.product_id] = item.selling_price;
         }
@@ -379,33 +369,29 @@ export default function NewSalePage() {
 
       // Preparar datos de la venta
       const saleData: SaleData = {
-        items: saleItems.map((item) => ({
+        items: saleItems.map(item => ({
           product_id: item.product_id,
           quantity: item.quantity,
           selling_price: item.selling_price,
-          price_ars: item.price_ars
+          price_ars: item.price_ars,
         })),
         payment_method: paymentMethod,
         exchange_rate: currentExchangeRate, // Guardar el tipo de cambio al momento de la venta
         user_id: user?.id || null, // Guardar el ID del usuario actual de Supabase
-        custom_prices // Enviar los precios personalizados
+        custom_prices, // Enviar los precios personalizados
       };
 
       // Añadir datos del cliente si corresponde
       if (selectedCustomer) {
         // Cliente existente
         saleData.customer_id = selectedCustomer;
-      } else if (
-        showNewCustomerForm &&
-        newCustomerData &&
-        newCustomerData.name.trim()
-      ) {
+      } else if (showNewCustomerForm && newCustomerData && newCustomerData.name.trim()) {
         // Nuevo cliente
         saleData.customer_data = {
           name: newCustomerData.name,
           whatsapp: newCustomerData.whatsapp,
           instagram: newCustomerData.instagram,
-          facebook: newCustomerData.facebook
+          facebook: newCustomerData.facebook,
         };
       }
       // Si no hay cliente seleccionado, se crea la venta sin cliente
@@ -413,9 +399,9 @@ export default function NewSalePage() {
       const response = await fetch('/api/sales', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(saleData)
+        body: JSON.stringify(saleData),
       });
 
       if (!response.ok) {
@@ -427,9 +413,7 @@ export default function NewSalePage() {
       router.push('/sales');
     } catch (error) {
       console.error('Error:', error);
-      message.error(
-        error instanceof Error ? error.message : 'Error al crear la venta'
-      );
+      message.error(error instanceof Error ? error.message : 'Error al crear la venta');
     } finally {
       setIsSaving(false);
     }
@@ -464,15 +448,15 @@ export default function NewSalePage() {
         <InputNumber
           min={1}
           value={item.quantity}
-          onChange={(value) => handleQuantityChange(index, value || 1)}
+          onChange={value => handleQuantityChange(index, value || 1)}
           style={{ width: 80 }}
         />
-      )
+      ),
     },
     {
       title: 'Producto',
       dataIndex: ['product', 'name'],
-      key: 'product'
+      key: 'product',
     },
     {
       title: 'Precio USD',
@@ -488,14 +472,9 @@ export default function NewSalePage() {
                 step={0.01}
                 precision={2}
                 defaultValue={item.selling_price}
-                onBlur={(e) =>
-                  saveEditedPrice(index, parseFloat(e.target.value))
-                }
-                onPressEnter={(e) =>
-                  saveEditedPrice(
-                    index,
-                    parseFloat((e.target as HTMLInputElement).value)
-                  )
+                onBlur={e => saveEditedPrice(index, parseFloat(e.target.value))}
+                onPressEnter={e =>
+                  saveEditedPrice(index, parseFloat((e.target as HTMLInputElement).value))
                 }
                 autoFocus
               />
@@ -522,9 +501,7 @@ export default function NewSalePage() {
 
         return (
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <Text style={{ marginRight: 4 }}>
-              {formatUsdPrice(item.selling_price)}
-            </Text>
+            <Text style={{ marginRight: 4 }}>{formatUsdPrice(item.selling_price)}</Text>
             <Button
               type="link"
               size="small"
@@ -534,19 +511,16 @@ export default function NewSalePage() {
             />
           </div>
         );
-      }
+      },
     },
     {
       title: 'Precio ARS',
       key: 'price_ars',
       width: 140,
       render: (item: NewSaleItem) => {
-        const formattedPrice = formatPriceWithExchange(
-          item.selling_price,
-          exchangeRate
-        );
+        const formattedPrice = formatPriceWithExchange(item.selling_price, exchangeRate);
         return <Text>{extractArsPrice(formattedPrice)}</Text>;
-      }
+      },
     },
     {
       title: 'Subtotal',
@@ -554,12 +528,9 @@ export default function NewSalePage() {
       width: 140,
       render: (item: NewSaleItem) => (
         <Text strong>
-          {formatPriceWithExchange(
-            item.selling_price * item.quantity,
-            exchangeRate
-          )}
+          {formatPriceWithExchange(item.selling_price * item.quantity, exchangeRate)}
         </Text>
-      )
+      ),
     },
     {
       title: 'Acciones',
@@ -572,8 +543,8 @@ export default function NewSalePage() {
           onClick={() => handleRemoveItem(index)}
           size="small"
         />
-      )
-    }
+      ),
+    },
   ];
 
   return (
@@ -590,16 +561,16 @@ export default function NewSalePage() {
                     onChange={handleCustomerChange}
                     value={
                       selectedCustomer
-                        ? customers.find((c) => c.id === selectedCustomer)?.name
+                        ? customers.find(c => c.id === selectedCustomer)?.name
                         : undefined
                     }
                     options={[
                       { value: '', label: 'Sin cliente' },
                       { value: 'new', label: '+ Crear nuevo cliente' },
-                      ...customers.map((customer) => ({
+                      ...customers.map(customer => ({
                         value: String(customer.id),
-                        label: customer.name
-                      }))
+                        label: customer.name,
+                      })),
                     ]}
                     filterOption={(inputValue, option) =>
                       option?.label
@@ -613,10 +584,7 @@ export default function NewSalePage() {
                 </div>
               </Col>
               <Col>
-                <Button
-                  icon={<ArrowLeftOutlined />}
-                  onClick={() => router.push('/sales')}
-                >
+                <Button icon={<ArrowLeftOutlined />} onClick={() => router.push('/sales')}>
                   Volver
                 </Button>
               </Col>
@@ -628,7 +596,7 @@ export default function NewSalePage() {
                   padding: 16,
                   background: '#f5f5f5',
                   borderRadius: 4,
-                  marginTop: 16
+                  marginTop: 16,
                 }}
               >
                 <Title level={5} style={{ marginBottom: 16 }}>
@@ -641,9 +609,7 @@ export default function NewSalePage() {
                       <Input
                         placeholder="Nombre del cliente"
                         value={newCustomerData?.name || ''}
-                        onChange={(e) =>
-                          handleNewCustomerInputChange('name', e.target.value)
-                        }
+                        onChange={e => handleNewCustomerInputChange('name', e.target.value)}
                       />
                     </div>
                   </Col>
@@ -653,12 +619,7 @@ export default function NewSalePage() {
                       <Input
                         placeholder="Número de WhatsApp"
                         value={newCustomerData?.whatsapp || ''}
-                        onChange={(e) =>
-                          handleNewCustomerInputChange(
-                            'whatsapp',
-                            e.target.value
-                          )
-                        }
+                        onChange={e => handleNewCustomerInputChange('whatsapp', e.target.value)}
                         prefix={<WhatsAppOutlined />}
                       />
                     </div>
@@ -669,12 +630,7 @@ export default function NewSalePage() {
                       <Input
                         placeholder="Usuario de Instagram"
                         value={newCustomerData?.instagram || ''}
-                        onChange={(e) =>
-                          handleNewCustomerInputChange(
-                            'instagram',
-                            e.target.value
-                          )
-                        }
+                        onChange={e => handleNewCustomerInputChange('instagram', e.target.value)}
                         prefix={<InstagramOutlined />}
                       />
                     </div>
@@ -685,12 +641,7 @@ export default function NewSalePage() {
                       <Input
                         placeholder="Usuario o URL de Facebook"
                         value={newCustomerData?.facebook || ''}
-                        onChange={(e) =>
-                          handleNewCustomerInputChange(
-                            'facebook',
-                            e.target.value
-                          )
-                        }
+                        onChange={e => handleNewCustomerInputChange('facebook', e.target.value)}
                         prefix={<FacebookOutlined />}
                       />
                     </div>
@@ -707,7 +658,7 @@ export default function NewSalePage() {
                 <InputNumber
                   min={1}
                   value={quantity}
-                  onChange={(value) => setQuantity(value || 1)}
+                  onChange={value => setQuantity(value || 1)}
                   style={{ width: '100%' }}
                 />
               </Col>
@@ -721,21 +672,16 @@ export default function NewSalePage() {
                   showSearch
                   filterOption={(input, option) =>
                     option?.children
-                      ? String(option.children)
-                          .toLowerCase()
-                          .includes(input.toLowerCase())
+                      ? String(option.children).toLowerCase().includes(input.toLowerCase())
                       : false
                   }
                 >
                   {products
-                    .filter((product) => product.stock > 0)
-                    .map((product) => (
+                    .filter(product => product.stock > 0)
+                    .map(product => (
                       <Option key={product.id} value={product.id}>
                         {product.name} -{' '}
-                        {formatPriceWithExchange(
-                          calculateSellingPrice(product),
-                          exchangeRate
-                        )}{' '}
+                        {formatPriceWithExchange(calculateSellingPrice(product), exchangeRate)}{' '}
                         (Stock: {product.stock})
                       </Option>
                     ))}
@@ -750,7 +696,7 @@ export default function NewSalePage() {
                     step={0.01}
                     precision={2}
                     value={selectedProductPrice}
-                    onChange={(value) => setSelectedProductPrice(value || 0)}
+                    onChange={value => setSelectedProductPrice(value || 0)}
                     prefix="U$"
                   />
                 </div>
@@ -760,8 +706,7 @@ export default function NewSalePage() {
                 <div>
                   <Text>
                     {(() => {
-                      if (!selectedProductPrice || !exchangeRate)
-                        return 'AR$ 0.00';
+                      if (!selectedProductPrice || !exchangeRate) return 'AR$ 0.00';
                       const formattedPrice = formatPriceWithExchange(
                         selectedProductPrice,
                         exchangeRate
@@ -811,7 +756,7 @@ export default function NewSalePage() {
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
-                  marginBottom: 8
+                  marginBottom: 8,
                 }}
               >
                 <Text>Productos:</Text>
@@ -821,20 +766,18 @@ export default function NewSalePage() {
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
-                  marginBottom: 8
+                  marginBottom: 8,
                 }}
               >
                 <Text>Items totales:</Text>
-                <Text>
-                  {saleItems.reduce((acc, item) => acc + item.quantity, 0)}
-                </Text>
+                <Text>{saleItems.reduce((acc, item) => acc + item.quantity, 0)}</Text>
               </div>
 
               <div style={{ marginTop: 16, marginBottom: 16 }}>
                 <Text strong>Medio de Pago:</Text>
                 <Radio.Group
                   value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  onChange={e => setPaymentMethod(e.target.value)}
                   style={{ display: 'flex', marginTop: 8 }}
                 >
                   <Radio value="efectivo">Efectivo</Radio>
@@ -848,7 +791,7 @@ export default function NewSalePage() {
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
-                  marginBottom: 8
+                  marginBottom: 8,
                 }}
               >
                 <Text strong>Total USD:</Text>
@@ -858,9 +801,7 @@ export default function NewSalePage() {
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text strong>Total ARS:</Text>
                 <Text strong style={{ color: '#52c41a', fontSize: 18 }}>
-                  {extractArsPrice(
-                    formatPriceWithExchange(calculateTotal(), exchangeRate)
-                  )}
+                  {extractArsPrice(formatPriceWithExchange(calculateTotal(), exchangeRate))}
                 </Text>
               </div>
             </div>

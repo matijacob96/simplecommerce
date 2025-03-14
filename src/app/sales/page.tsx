@@ -13,7 +13,7 @@ import {
   Descriptions,
   Row,
   Col,
-  Tooltip
+  Tooltip,
 } from 'antd';
 import { StyleProvider } from '@ant-design/cssinjs';
 import type { ColumnsType } from 'antd/es/table';
@@ -27,7 +27,7 @@ import {
   ExclamationCircleOutlined,
   WhatsAppOutlined,
   InstagramOutlined,
-  FacebookOutlined
+  FacebookOutlined,
 } from '@ant-design/icons';
 import Link from 'next/link';
 import { Prisma } from '@prisma/client';
@@ -37,7 +37,7 @@ import {
   formatPriceWithExchange,
   calculateSellingPrice,
   toNumber,
-  formatDualPrice
+  formatDualPrice,
 } from '../../utils/priceUtils';
 
 const { Title, Text } = Typography;
@@ -61,10 +61,10 @@ export default function SalesPage() {
   }>({
     pagination: {
       current: 1,
-      pageSize: 10
+      pageSize: 10,
     },
     sortField: null,
-    sortOrder: null
+    sortOrder: null,
   });
 
   // Usar useCallback para la función fetchSales
@@ -92,7 +92,7 @@ export default function SalesPage() {
   const handleDelete = async (id: number) => {
     try {
       const response = await fetch(`/api/sales/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       });
 
       if (!response.ok) {
@@ -104,9 +104,7 @@ export default function SalesPage() {
       fetchSaleData(); // Recargar la lista de ventas
     } catch (error) {
       console.error('Error:', error);
-      message.error(
-        error instanceof Error ? error.message : 'Error al eliminar la venta'
-      );
+      message.error(error instanceof Error ? error.message : 'Error al eliminar la venta');
     }
   };
 
@@ -114,14 +112,13 @@ export default function SalesPage() {
     confirm({
       title: '¿Estás seguro de eliminar esta venta?',
       icon: <ExclamationCircleOutlined />,
-      content:
-        'Esta acción restaurará el stock de los productos. No se puede deshacer.',
+      content: 'Esta acción restaurará el stock de los productos. No se puede deshacer.',
       okText: 'Sí, eliminar',
       okType: 'danger',
       cancelText: 'Cancelar',
       onOk() {
         handleDelete(id);
-      }
+      },
     });
   };
 
@@ -146,7 +143,7 @@ export default function SalesPage() {
       transferencia: { color: 'blue', text: 'Transferencia' },
       tarjeta: { color: 'purple', text: 'Tarjeta' },
       credito: { color: 'orange', text: 'Crédito' },
-      default: { color: 'default', text: method || 'Desconocido' }
+      default: { color: 'default', text: method || 'Desconocido' },
     };
 
     const { color, text } = methods[method] ||
@@ -155,8 +152,7 @@ export default function SalesPage() {
   };
 
   const renderCustomerName = (sale: Sale) => {
-    if (!sale.customer)
-      return <Text type="secondary">Cliente no registrado</Text>;
+    if (!sale.customer) return <Text type="secondary">Cliente no registrado</Text>;
 
     return (
       <div>
@@ -176,14 +172,14 @@ export default function SalesPage() {
     setTableParams({
       pagination: {
         current: pagination.current || 1,
-        pageSize: pagination.pageSize || 10
+        pageSize: pagination.pageSize || 10,
       },
       sortField: Array.isArray(sorter)
         ? sorter[0]?.field?.toString() || null
         : sorter.field?.toString() || null,
       sortOrder: Array.isArray(sorter)
         ? sorter[0]?.order?.toString() || null
-        : sorter.order?.toString() || null
+        : sorter.order?.toString() || null,
     });
   };
 
@@ -197,28 +193,31 @@ export default function SalesPage() {
       const sortOrder = tableParams.sortOrder === 'ascend' ? 1 : -1;
 
       switch (tableParams.sortField) {
-        case 'created_at':
-          return (
-            sortOrder *
-            (new Date(a.created_at).getTime() -
-              new Date(b.created_at).getTime())
-          );
+        case 'created_at': {
+          const dateA = new Date(a.created_at);
+          const dateB = new Date(b.created_at);
+          return sortOrder * (dateA.getTime() - dateB.getTime());
+        }
 
-        case 'customer':
-          const aName = a.customer?.name || '';
-          const bName = b.customer?.name || '';
-          return sortOrder * aName.localeCompare(bName);
+        case 'customer': {
+          const customerA = a.customer?.name || '';
+          const customerB = b.customer?.name || '';
+          return sortOrder * customerA.localeCompare(customerB);
+        }
 
-        case 'total':
+        case 'total': {
           const aTotal = parseFloat(a.total.toString());
           const bTotal = parseFloat(b.total.toString());
           return sortOrder * (aTotal - bTotal);
+        }
 
-        case 'items':
+        case 'items': {
           return sortOrder * (a.items.length - b.items.length);
+        }
 
-        case 'payment_method':
+        case 'payment_method': {
           return sortOrder * a.payment_method.localeCompare(b.payment_method);
+        }
 
         default:
           return 0;
@@ -233,14 +232,14 @@ export default function SalesPage() {
       key: 'created_at',
       render: (date: string) => formatDate(date),
       sorter: true,
-      defaultSortOrder: 'descend'
+      defaultSortOrder: 'descend',
     },
     {
       title: 'Cliente',
       key: 'customer',
       dataIndex: 'customer',
       render: (_: unknown, sale: Sale) => renderCustomerName(sale),
-      sorter: true
+      sorter: true,
     },
     {
       title: 'Medio de Pago',
@@ -250,9 +249,9 @@ export default function SalesPage() {
       sorter: true,
       filters: [
         { text: 'Efectivo', value: 'efectivo' },
-        { text: 'Transferencia', value: 'transferencia' }
+        { text: 'Transferencia', value: 'transferencia' },
       ],
-      onFilter: (value, record) => record.payment_method === value
+      onFilter: (value, record) => record.payment_method === value,
     },
     {
       title: 'Total',
@@ -266,25 +265,21 @@ export default function SalesPage() {
         // Si no, calcularlo a partir del exchange_rate de la venta
         return formatPriceWithExchange(total, record.exchange_rate);
       },
-      sorter: true
+      sorter: true,
     },
     {
       title: 'Productos',
       key: 'items',
       dataIndex: 'items',
       render: (_: unknown, sale: Sale) => `${sale.items.length} productos`,
-      sorter: true
+      sorter: true,
     },
     {
       title: 'Acciones',
       key: 'actions',
       render: (sale: Sale) => (
         <Space size="small">
-          <Button
-            icon={<EyeOutlined />}
-            onClick={() => showDetails(sale)}
-            size="small"
-          />
+          <Button icon={<EyeOutlined />} onClick={() => showDetails(sale)} size="small" />
           <Link href={`/sales/edit/${sale.id}`}>
             <Button icon={<EditOutlined />} type="primary" size="small" />
           </Link>
@@ -295,8 +290,8 @@ export default function SalesPage() {
             size="small"
           />
         </Space>
-      )
-    }
+      ),
+    },
   ];
 
   return (
@@ -331,7 +326,7 @@ export default function SalesPage() {
                 ...tableParams.pagination,
                 showSizeChanger: true,
                 pageSizeOptions: ['10', '20', '50', '100'],
-                showTotal: (total) => `Total ${total} ventas`
+                showTotal: total => `Total ${total} ventas`,
               }}
             />
           </div>
@@ -345,7 +340,7 @@ export default function SalesPage() {
           footer={[
             <Button key="back" onClick={closeModal}>
               Cerrar
-            </Button>
+            </Button>,
           ]}
           width={900}
         >
@@ -370,14 +365,8 @@ export default function SalesPage() {
                 >
                   <Text strong>
                     {detailsSale.total_ars
-                      ? formatDualPrice(
-                          detailsSale.total,
-                          detailsSale.total_ars
-                        )
-                      : formatPriceWithExchange(
-                          detailsSale.total,
-                          detailsSale.exchange_rate
-                        )}
+                      ? formatDualPrice(detailsSale.total, detailsSale.total_ars)
+                      : formatPriceWithExchange(detailsSale.total, detailsSale.exchange_rate)}
                   </Text>
                 </Descriptions.Item>
                 <Descriptions.Item
@@ -404,9 +393,7 @@ export default function SalesPage() {
                       </Text>
                       <Space style={{ marginTop: 8 }}>
                         {detailsSale.customer.whatsapp && (
-                          <Tooltip
-                            title={`WhatsApp: ${detailsSale.customer.whatsapp}`}
-                          >
+                          <Tooltip title={`WhatsApp: ${detailsSale.customer.whatsapp}`}>
                             <a
                               href={`https://wa.me/${detailsSale.customer.whatsapp.replace(
                                 /\D/g,
@@ -415,16 +402,12 @@ export default function SalesPage() {
                               target="_blank"
                               rel="noopener noreferrer"
                             >
-                              <WhatsAppOutlined
-                                style={{ fontSize: '18px', color: '#25D366' }}
-                              />
+                              <WhatsAppOutlined style={{ fontSize: '18px', color: '#25D366' }} />
                             </a>
                           </Tooltip>
                         )}
                         {detailsSale.customer.instagram && (
-                          <Tooltip
-                            title={`Instagram: ${detailsSale.customer.instagram}`}
-                          >
+                          <Tooltip title={`Instagram: ${detailsSale.customer.instagram}`}>
                             <a
                               href={`https://instagram.com/${detailsSale.customer.instagram.replace(
                                 '@',
@@ -433,24 +416,18 @@ export default function SalesPage() {
                               target="_blank"
                               rel="noopener noreferrer"
                             >
-                              <InstagramOutlined
-                                style={{ fontSize: '18px', color: '#E1306C' }}
-                              />
+                              <InstagramOutlined style={{ fontSize: '18px', color: '#E1306C' }} />
                             </a>
                           </Tooltip>
                         )}
                         {detailsSale.customer.facebook && (
-                          <Tooltip
-                            title={`Facebook: ${detailsSale.customer.facebook}`}
-                          >
+                          <Tooltip title={`Facebook: ${detailsSale.customer.facebook}`}>
                             <a
                               href={`https://facebook.com/${detailsSale.customer.facebook}`}
                               target="_blank"
                               rel="noopener noreferrer"
                             >
-                              <FacebookOutlined
-                                style={{ fontSize: '18px', color: '#1877F2' }}
-                              />
+                              <FacebookOutlined style={{ fontSize: '18px', color: '#1877F2' }} />
                             </a>
                           </Tooltip>
                         )}
@@ -476,12 +453,12 @@ export default function SalesPage() {
                   {
                     title: 'Producto',
                     dataIndex: ['product', 'name'],
-                    key: 'product'
+                    key: 'product',
                   },
                   {
                     title: 'Cantidad',
                     dataIndex: 'quantity',
-                    key: 'quantity'
+                    key: 'quantity',
                   },
                   {
                     title: 'Precio Unitario',
@@ -489,27 +466,16 @@ export default function SalesPage() {
                     render: (item: SaleItem) => {
                       // Si tiene precio en ARS almacenado, usarlo
                       if (item.price_ars) {
-                        return formatDualPrice(
-                          item.selling_price,
-                          item.price_ars
-                        );
+                        return formatDualPrice(item.selling_price, item.price_ars);
                       }
 
                       // Si el precio de venta no existe, calcular usando la lógica de margen
                       if (!item.selling_price) {
-                        const sellingPrice = calculateSellingPrice(
-                          item.product
-                        );
-                        return formatPriceWithExchange(
-                          sellingPrice,
-                          detailsSale.exchange_rate
-                        );
+                        const sellingPrice = calculateSellingPrice(item.product);
+                        return formatPriceWithExchange(sellingPrice, detailsSale.exchange_rate);
                       }
-                      return formatPriceWithExchange(
-                        item.selling_price,
-                        detailsSale.exchange_rate
-                      );
-                    }
+                      return formatPriceWithExchange(item.selling_price, detailsSale.exchange_rate);
+                    },
                   },
                   {
                     title: 'Subtotal',
@@ -533,19 +499,16 @@ export default function SalesPage() {
                         return formatDualPrice(subtotalUsd, subtotalArs);
                       }
 
-                      return formatPriceWithExchange(
-                        subtotalUsd,
-                        detailsSale.exchange_rate
-                      );
-                    }
-                  }
+                      return formatPriceWithExchange(subtotalUsd, detailsSale.exchange_rate);
+                    },
+                  },
                 ]}
-                summary={(pageData) => {
+                summary={pageData => {
                   let totalPrice = 0;
                   let totalPriceArs = 0;
                   let hasArsPrice = false;
 
-                  pageData.forEach((item) => {
+                  pageData.forEach(item => {
                     // Calcular el precio de venta si no está disponible
                     let price = 0;
                     if (item.selling_price) {
@@ -572,10 +535,7 @@ export default function SalesPage() {
                         <strong style={{ fontSize: '1.1em' }}>
                           {hasArsPrice
                             ? formatDualPrice(totalPrice, totalPriceArs)
-                            : formatPriceWithExchange(
-                                totalPrice,
-                                detailsSale.exchange_rate
-                              )}
+                            : formatPriceWithExchange(totalPrice, detailsSale.exchange_rate)}
                         </strong>
                       </Table.Summary.Cell>
                     </Table.Summary.Row>

@@ -7,14 +7,14 @@ import React, {
   useState,
   useCallback,
   useRef,
-  Suspense
+  Suspense,
 } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   calculateUsdPrice,
   calculateArsPrice,
   formatUsdPrice,
-  formatArsPrice
+  formatArsPrice,
 } from '@/utils/priceUtils';
 import { Spin } from 'antd';
 
@@ -37,12 +37,7 @@ export type Product = {
 };
 
 // Tipo para opciones de ordenamiento
-type SortOption =
-  | 'default'
-  | 'price_asc'
-  | 'price_desc'
-  | 'name_asc'
-  | 'name_desc';
+type SortOption = 'default' | 'price_asc' | 'price_desc' | 'name_asc' | 'name_desc';
 
 interface DolarBlue {
   compra: number;
@@ -102,16 +97,15 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-const AppStateContext = createContext<AppStateContextType | undefined>(
-  undefined
-);
+const AppStateContext = createContext<AppStateContextType | undefined>(undefined);
 
 // Componente interno que usa useSearchParams
 function AppStateProviderContent({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
 
-  // Parámetros de URL
+  // Parámetros de URL (ahora solo para inicialización inicial)
   const categoryParam = searchParams.get('category') || 'all';
   const searchParam = searchParams.get('search') || '';
   const availableParam = searchParams.get('available');
@@ -119,6 +113,9 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
 
   // Referencia para saber si el componente está montado
   const isMounted = useRef(true);
+
+  // Referencia para controlar la inicialización
+  const isInitialized = useRef(false);
 
   // Estados
   const [products, setProducts] = useState<Product[]>([]);
@@ -130,7 +127,7 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
   const [loadingDolar, setLoadingDolar] = useState(true);
   const [defaultProfitMargin] = useState(0.2);
 
-  // Filtros
+  // Filtros (inicializados una vez desde URL o con valores por defecto)
   const [search, setSearch] = useState(searchParam);
   const [filter, setFilter] = useState(categoryParam);
   const [onlyAvailable, setOnlyAvailable] = useState(
@@ -154,147 +151,73 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
     >
   >({});
 
-  // Métodos
-  const updateUrlWithFilters = useCallback(
-    (params: {
-      search?: string;
-      category?: string;
-      available?: boolean;
-      sort?: SortOption;
-    }) => {
-      const newParams = new URLSearchParams(searchParams.toString());
-
-      if (params.search !== undefined) {
-        if (params.search) {
-          newParams.set('search', params.search);
-        } else {
-          newParams.delete('search');
-        }
-      }
-
-      if (params.category !== undefined) {
-        if (params.category && params.category !== 'all') {
-          newParams.set('category', params.category);
-        } else {
-          newParams.delete('category');
-        }
-      }
-
-      if (params.available !== undefined) {
-        newParams.set('available', params.available.toString());
-      }
-
-      if (params.sort !== undefined) {
-        if (params.sort && params.sort !== 'default') {
-          newParams.set('sort', params.sort);
-        } else {
-          newParams.delete('sort');
-        }
-      }
-
-      const newPathname = `/?${newParams.toString()}`;
-      router.push(newPathname);
-    },
-    [searchParams, router]
-  );
-
-  // Método para refrescar datos
-  const refreshData = useCallback(async () => {
-    if (!isMounted.current) return;
-
-    try {
-      setLoading(true);
-
-      // Cargar categorías
-      const catResponse = await fetch('/api/categories');
-      if (catResponse.ok && isMounted.current) {
-        const catData = await catResponse.json();
-        setCategories(catData || []);
-      } else {
-        console.error(
-          'Respuesta no OK al cargar categorías:',
-          catResponse.status
-        );
-      }
-
-      // Cargar productos
-      const queryParams = new URLSearchParams();
-
-      if (searchParam) {
-        queryParams.set('search', searchParam);
-      }
-
-      queryParams.set('filter', filter);
-
-      const prodResponse = await fetch(
-        `/api/products?${queryParams.toString()}`
-      );
-
-      if (prodResponse.ok && isMounted.current) {
-        const prodData = await prodResponse.json();
-        setProducts(prodData || []);
-      } else {
-        console.error(
-          'Respuesta no OK al cargar productos:',
-          prodResponse.status
-        );
-        if (isMounted.current) {
-          setProducts([]);
-        }
-      }
-
-      // Cargar dólar blue
-      const dolarResponse = await fetch('/api/dolar-blue');
-      if (dolarResponse.ok && isMounted.current) {
-        const { data } = await dolarResponse.json();
-        setDolarBlue(data);
-      }
-
-      // Resetear caché
-      if (isMounted.current) {
-        priceCache.current = {};
-      }
-    } catch (error) {
-      console.error('Error al refrescar datos:', error);
-    } finally {
-      if (isMounted.current) {
-        setLoading(false);
-      }
+  // Nueva función para aplicar los filtros a la URL cuando estamos en la página del catálogo
+  const applyFiltersToUrl = useCallback(() => {
+    // Solo aplicar cuando estamos en la página principal (catálogo)
+    if (pathname !== '/' && pathname !== '') {
+      return;
     }
-  }, [
-    searchParam,
-    filter,
-    setCategories,
-    setProducts,
-    setDolarBlue,
-    setLoading,
-    priceCache,
-    isMounted
-  ]);
 
-  // Detectar tamaño de pantalla
+    const newParams = new URLSearchParams();
+
+    // Aplicar búsqueda si existe
+    if (search) {
+      newParams.set('search', search);
+    }
+
+    // Aplicar categoría si no es 'all'
+    if (filter && filter !== 'all') {
+      newParams.set('category', filter);
+    }
+
+    // Aplicar disponibilidad SOLO si es false (no mostramos el valor por defecto true)
+    if (!onlyAvailable) {
+      newParams.set('available', 'false');
+    }
+
+    // Aplicar ordenamiento si no es el default
+    if (sortBy && sortBy !== 'default') {
+      newParams.set('sort', sortBy);
+    }
+
+    // Construir la nueva URL y navegación sin recargar
+    const newPathname = `/?${newParams.toString()}`;
+
+    // Usar router.push en lugar de history.replaceState para asegurar
+    // una actualización de URL más consistente
+    router.push(newPathname, { scroll: false });
+  }, [pathname, search, filter, onlyAvailable, sortBy, router]);
+
+  // Aplicar filtros a la URL cuando cambiamos a la página principal
   useEffect(() => {
-    const checkIsMobile = () => {
-      setIsMobile(window.innerWidth < 576);
-    };
+    if (!isMounted.current || !isInitialized.current) return;
 
-    checkIsMobile();
-    window.addEventListener('resize', checkIsMobile);
+    // Si estamos en la página principal, aplicar los filtros a la URL
+    if (pathname === '/' || pathname === '') {
+      applyFiltersToUrl();
+    }
+  }, [pathname, applyFiltersToUrl]);
 
-    return () => window.removeEventListener('resize', checkIsMobile);
+  // Inicialización completa
+  useEffect(() => {
+    isInitialized.current = true;
   }, []);
 
   // Actualizar URL cuando cambie el valor de búsqueda debounceado
   useEffect(() => {
-    if (debouncedSearch !== searchParam) {
-      updateUrlWithFilters({ search: debouncedSearch });
+    if (!isMounted.current || !isInitialized.current) return;
+
+    // Solo si estamos en la página principal y el valor ha cambiado
+    if (pathname === '/' || pathname === '') {
+      // Aplicar los filtros inmediatamente
+      applyFiltersToUrl();
     }
-  }, [debouncedSearch, searchParam, updateUrlWithFilters]);
+  }, [debouncedSearch, pathname, applyFiltersToUrl]);
 
   // Filtrar productos por disponibilidad
   useEffect(() => {
     if (onlyAvailable) {
-      setFilteredProducts(products.filter((product) => product.stock > 0));
+      setFilteredProducts(products.filter(product => product.stock > 0));
     } else {
       setFilteredProducts(products);
     }
@@ -325,10 +248,7 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
           const data = await response.json();
           setCategories(data || []);
         } else {
-          console.error(
-            'Respuesta no OK al cargar categorías:',
-            response.status
-          );
+          console.error('Respuesta no OK al cargar categorías:', response.status);
         }
       } catch (error) {
         console.error('Error al cargar categorías:', error);
@@ -355,18 +275,23 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
           queryParams.set('search', searchParam);
         }
 
-        queryParams.set('filter', categoryParam);
+        // Asegurar que el filtro de categoría se aplique correctamente
+        if (categoryParam && categoryParam !== 'all') {
+          queryParams.set('filter', categoryParam);
+        } else {
+          queryParams.set('filter', 'all');
+        }
 
         const response = await fetch(`/api/products?${queryParams.toString()}`);
 
         if (response.ok && isMounted.current) {
           const data = await response.json();
           setProducts(data || []);
+
+          // Log para depuración
+          console.log(`Productos cargados con filtro: ${categoryParam}`, data.length);
         } else {
-          console.error(
-            'Respuesta no OK al cargar productos:',
-            response.status
-          );
+          console.error('Respuesta no OK al cargar productos:', response.status);
           if (isMounted.current) {
             setProducts([]);
           }
@@ -408,11 +333,14 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
     };
 
     fetchDolarBlue();
-    const interval = setInterval(() => {
-      if (isMounted.current) {
-        fetchDolarBlue();
-      }
-    }, 1000 * 60 * 60); // Actualizar cada hora
+    const interval = setInterval(
+      () => {
+        if (isMounted.current) {
+          fetchDolarBlue();
+        }
+      },
+      1000 * 60 * 60
+    ); // Actualizar cada hora
 
     return () => clearInterval(interval);
   }, []);
@@ -420,29 +348,66 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
   // Manejar cambios de visibilidad (cambio de pestaña)
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        refreshData();
+      if (document.visibilityState === 'visible' && isMounted.current) {
+        // En lugar de llamar a refreshData directamente, llamamos
+        // a las funciones individuales necesarias para evitar la referencia circular
+        setLoading(true);
+
+        // Cargar productos y categorías
+        fetch('/api/categories')
+          .then(response => (response.ok ? response.json() : []))
+          .then(data => {
+            if (isMounted.current) {
+              setCategories(data || []);
+            }
+          })
+          .catch(error => console.error('Error al cargar categorías:', error));
+
+        // Cargar dólar blue
+        fetch('/api/dolar-blue')
+          .then(response => (response.ok ? response.json() : null))
+          .then(responseData => {
+            if (isMounted.current && responseData) {
+              setDolarBlue(responseData.data);
+            }
+          })
+          .catch(error => console.error('Error al cargar dólar blue:', error))
+          .finally(() => {
+            if (isMounted.current) {
+              setLoading(false);
+            }
+          });
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    return () =>
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [refreshData]);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
   // Método para buscar
   const handleSearchSubmit = useCallback(() => {
     if (!isMounted.current) return;
-    updateUrlWithFilters({ search });
-  }, [search, updateUrlWithFilters]);
+
+    // En la página principal, actualizar la URL
+    if (pathname === '/' || pathname === '') {
+      applyFiltersToUrl();
+    }
+  }, [pathname, applyFiltersToUrl]);
 
   // Método para limpiar búsqueda
   const handleSearchClear = useCallback(() => {
     if (!isMounted.current) return;
+
+    // Actualizar estado
     setSearch('');
-    updateUrlWithFilters({ search: '' });
-  }, [updateUrlWithFilters]);
+
+    // En la página principal, actualizar la URL
+    if (pathname === '/' || pathname === '') {
+      // Aplicar los filtros inmediatamente
+      applyFiltersToUrl();
+    }
+  }, [pathname, applyFiltersToUrl]);
 
   // Método para cambiar categoría
   const handleCategoryChange = useCallback(
@@ -453,33 +418,84 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
         // Primero actualizamos el estado local
         setFilter(value);
 
+        // Actualizar la URL inmediatamente
+        if (pathname === '/' || pathname === '') {
+          applyFiltersToUrl();
+        }
+
         // Realizar una limpieza preventiva del caché durante cambios de categoría
         // para garantizar precios frescos con la nueva categoría
         priceCache.current = {};
 
-        // Usamos setTimeout para asegurar que la actualización de URL
-        // ocurra después de que React haya actualizado el DOM,
-        // evitando problemas de sincronización
-        setTimeout(() => {
-          if (isMounted.current) {
-            updateUrlWithFilters({ category: value });
+        // Actualizar la carga de productos con la nueva categoría
+        setLoading(true);
+
+        // Crear función asíncrona para cargar productos filtrados por la nueva categoría
+        const fetchFilteredProducts = async () => {
+          if (!isMounted.current) return;
+
+          try {
+            const queryParams = new URLSearchParams();
+
+            if (search) {
+              queryParams.set('search', search);
+            }
+
+            queryParams.set('filter', value);
+
+            const response = await fetch(`/api/products?${queryParams.toString()}`);
+
+            if (response.ok && isMounted.current) {
+              const data = await response.json();
+              setProducts(data || []);
+
+              // Log para depuración
+              console.log(`Productos filtrados por categoría: ${value}`, data.length);
+            } else {
+              console.error('Respuesta no OK al cargar productos filtrados:', response.status);
+              if (isMounted.current) {
+                setProducts([]);
+              }
+            }
+          } catch (error) {
+            console.error('Error al cargar productos filtrados:', error);
+            if (isMounted.current) {
+              setProducts([]);
+            }
+          } finally {
+            if (isMounted.current) {
+              setLoading(false);
+            }
           }
-        }, 0);
+        };
+
+        // Ejecutar la carga de productos
+        fetchFilteredProducts();
       } catch (error) {
         console.error('Error al cambiar categoría:', error);
+        if (isMounted.current) {
+          setLoading(false);
+        }
       }
     },
-    [updateUrlWithFilters]
+    [search, setProducts, setLoading, pathname, applyFiltersToUrl]
   );
 
   // Método para cambiar disponibilidad
   const handleAvailabilityChange = useCallback(
     (value: boolean) => {
       if (!isMounted.current) return;
+
+      // Actualizar estado
       setOnlyAvailable(value);
-      updateUrlWithFilters({ available: value });
+
+      // Actualizar URL inmediatamente si estamos en la página principal
+      if (pathname === '/' || pathname === '') {
+        // Aplicar el cambio inmediatamente
+        applyFiltersToUrl();
+      }
     },
-    [updateUrlWithFilters]
+    [pathname, applyFiltersToUrl]
   );
 
   // Método para cambiar ordenamiento
@@ -487,17 +503,19 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
     (value: SortOption) => {
       if (!isMounted.current) return;
 
-      // Primero actualizamos el estado local
+      // Actualizar estado
       setSortBy(value);
 
-      // Usamos setTimeout para evitar problemas de sincronización
-      setTimeout(() => {
-        if (isMounted.current) {
-          updateUrlWithFilters({ sort: value });
-        }
-      }, 0);
+      // Log para depuración
+      console.log(`Cambiando ordenamiento a: ${value}`);
+
+      // Actualizar URL inmediatamente si estamos en la página principal
+      if (pathname === '/' || pathname === '') {
+        // Aplicar el cambio inmediatamente
+        applyFiltersToUrl();
+      }
     },
-    [updateUrlWithFilters]
+    [pathname, applyFiltersToUrl]
   );
 
   // Método para obtener precios
@@ -505,14 +523,12 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
     ((product: Product) => {
       // Verificación básica de producto
       if (!product) {
-        console.warn(
-          'Se intentó obtener precios de un producto nulo o indefinido'
-        );
+        console.warn('Se intentó obtener precios de un producto nulo o indefinido');
         return {
           usdPrice: 0,
           arsPrice: 0,
           formattedUsd: formatUsdPrice(0),
-          formattedArs: formatArsPrice(0)
+          formattedArs: formatArsPrice(0),
         };
       }
 
@@ -527,8 +543,8 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
           typeof product.price === 'number'
             ? product.price
             : typeof product.price === 'string'
-            ? parseFloat(product.price)
-            : 0;
+              ? parseFloat(product.price)
+              : 0;
 
         // Si no hay dólar o categorías, usar cálculo simplificado
         if (!dolarBlue || !categories.length) {
@@ -536,7 +552,7 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
             usdPrice: basePrice,
             arsPrice: basePrice * 1000,
             formattedUsd: formatUsdPrice(basePrice),
-            formattedArs: formatArsPrice(basePrice * 1000)
+            formattedArs: formatArsPrice(basePrice * 1000),
           };
         }
 
@@ -555,12 +571,8 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
               : parseFloat(String(product.category.profit_margin));
         } else if (product.category_id) {
           // Buscar la categoría si solo tenemos el ID
-          const category = categories.find((c) => c.id === product.category_id);
-          if (
-            category &&
-            category.profit_margin !== null &&
-            category.profit_margin !== undefined
-          ) {
+          const category = categories.find(c => c.id === product.category_id);
+          if (category && category.profit_margin !== null && category.profit_margin !== undefined) {
             profitMargin =
               typeof category.profit_margin === 'number'
                 ? category.profit_margin
@@ -573,8 +585,8 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
           typeof dolarBlue.venta === 'number'
             ? dolarBlue.venta
             : typeof dolarBlue.venta === 'string'
-            ? parseFloat(dolarBlue.venta)
-            : 1000;
+              ? parseFloat(dolarBlue.venta)
+              : 1000;
 
         // Calcular precios
         const usdPrice = calculateUsdPrice(basePrice, profitMargin);
@@ -585,7 +597,7 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
           usdPrice,
           arsPrice,
           formattedUsd: formatUsdPrice(usdPrice),
-          formattedArs: formatArsPrice(arsPrice)
+          formattedArs: formatArsPrice(arsPrice),
         };
 
         // Guardar en caché
@@ -595,11 +607,7 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
 
         return result;
       } catch (error) {
-        console.error(
-          'Error al calcular precios para producto:',
-          product.id,
-          error
-        );
+        console.error('Error al calcular precios para producto:', product.id, error);
 
         // En caso de error, usar el precio base directamente
         const fallbackPrice = product.price || 0;
@@ -607,7 +615,7 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
           usdPrice: fallbackPrice,
           arsPrice: fallbackPrice * 1000,
           formattedUsd: formatUsdPrice(fallbackPrice),
-          formattedArs: formatArsPrice(fallbackPrice * 1000)
+          formattedArs: formatArsPrice(fallbackPrice * 1000),
         };
       }
     }) as (product: Product) => {
@@ -628,7 +636,7 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
 
       try {
         // Filtrar productos nulos o indefinidos para evitar errores
-        const validProducts = productsToSort.filter((p) => p != null);
+        const validProducts = productsToSort.filter(p => p != null);
 
         // Si no hay productos válidos, devolver array vacío
         if (!validProducts.length) {
@@ -709,13 +717,19 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
         let filtered = [...products];
 
         // Asegurarse de que todos los productos son válidos
-        filtered = filtered.filter(
-          (product) => product !== null && product !== undefined
-        );
+        filtered = filtered.filter(product => product !== null && product !== undefined);
+
+        // Filtrar por categoría
+        if (filter && filter !== 'all') {
+          filtered = filtered.filter(product => {
+            const categoryId = parseInt(filter, 10);
+            return product.category_id === categoryId;
+          });
+        }
 
         // Filtrar por disponibilidad
         if (onlyAvailable) {
-          filtered = filtered.filter((product) => product.stock > 0);
+          filtered = filtered.filter(product => product.stock > 0);
         }
 
         // Aplicar ordenamiento
@@ -744,32 +758,106 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
     return () => {
       clearTimeout(timerId);
     };
-  }, [products, onlyAvailable, sortBy, sortProducts]);
-
-  // Actualizar URL cuando cambie el valor de ordenamiento
-  useEffect(() => {
-    if (!isMounted.current) return;
-
-    if (sortBy !== sortParam) {
-      const timerId = setTimeout(() => {
-        if (isMounted.current) {
-          updateUrlWithFilters({ sort: sortBy });
-        }
-      }, 0);
-
-      return () => {
-        clearTimeout(timerId);
-      };
-    }
-
-    return undefined; // Devolver explícitamente undefined para evitar el error de tipo
-  }, [sortBy, sortParam, updateUrlWithFilters]);
+  }, [products, onlyAvailable, sortBy, sortProducts, filter]);
 
   // Asegurar que no se actualice el estado después de desmontado
   useEffect(() => {
     return () => {
       isMounted.current = false;
     };
+  }, []);
+
+  // Método para refrescar datos
+  const refreshData = useCallback(async () => {
+    if (!isMounted.current) return;
+
+    try {
+      setLoading(true);
+
+      // Cargar categorías
+      const catResponse = await fetch('/api/categories');
+      if (catResponse.ok && isMounted.current) {
+        const catData = await catResponse.json();
+        setCategories(catData || []);
+      } else {
+        console.error('Respuesta no OK al cargar categorías:', catResponse.status);
+      }
+
+      // Cargar productos
+      const queryParams = new URLSearchParams();
+
+      if (searchParam) {
+        queryParams.set('search', searchParam);
+      }
+
+      // Asegurar que el filtro de categoría se aplique correctamente
+      if (filter && filter !== 'all') {
+        queryParams.set('filter', filter);
+      } else {
+        queryParams.set('filter', 'all');
+      }
+
+      const prodResponse = await fetch(`/api/products?${queryParams.toString()}`);
+
+      if (prodResponse.ok && isMounted.current) {
+        const prodData = await prodResponse.json();
+        setProducts(prodData || []);
+
+        // Log para depuración
+        console.log(`Productos actualizados con filtro: ${filter}`, prodData.length);
+      } else {
+        console.error('Respuesta no OK al cargar productos:', prodResponse.status);
+        if (isMounted.current) {
+          setProducts([]);
+        }
+      }
+
+      // Cargar dólar blue
+      const dolarResponse = await fetch('/api/dolar-blue');
+      if (dolarResponse.ok && isMounted.current) {
+        const { data } = await dolarResponse.json();
+        setDolarBlue(data);
+      }
+
+      // Resetear caché
+      if (isMounted.current) {
+        priceCache.current = {};
+      }
+
+      // Aplicar filtros a la URL si estamos en la página principal
+      if (pathname === '/' || pathname === '') {
+        applyFiltersToUrl();
+      }
+    } catch (error) {
+      console.error('Error al refrescar datos:', error);
+    } finally {
+      if (isMounted.current) {
+        setLoading(false);
+      }
+    }
+  }, [
+    searchParam,
+    filter,
+    pathname,
+    applyFiltersToUrl,
+    setCategories,
+    setProducts,
+    setDolarBlue,
+    setLoading,
+    priceCache,
+    isMounted,
+  ]);
+
+  // Detectar tamaño de pantalla
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 576);
+    };
+
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+
+    return () => window.removeEventListener('resize', checkIsMobile);
   }, []);
 
   const contextValue: AppStateContextType = {
@@ -797,14 +885,10 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
     handleAvailabilityChange,
     handleSortChange,
     getPrices,
-    refreshData
+    refreshData,
   };
 
-  return (
-    <AppStateContext.Provider value={contextValue}>
-      {children}
-    </AppStateContext.Provider>
-  );
+  return <AppStateContext.Provider value={contextValue}>{children}</AppStateContext.Provider>;
 }
 
 // Componente principal con Suspense boundary

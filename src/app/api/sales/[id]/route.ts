@@ -23,20 +23,14 @@ async function getCurrentExchangeRate() {
 }
 
 // GET para obtener una venta específica por ID
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     // Esperar a que params esté disponible
     const paramsData = await params;
     const id = parseInt(paramsData.id);
 
     if (isNaN(id)) {
-      return NextResponse.json(
-        { error: 'ID de venta inválido' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'ID de venta inválido' }, { status: 400 });
     }
 
     const sale = await prisma.sale.findUnique({
@@ -44,45 +38,33 @@ export async function GET(
       include: {
         items: {
           include: {
-            product: true
-          }
+            product: true,
+          },
         },
-        customer: true
-      }
+        customer: true,
+      },
     });
 
     if (!sale) {
-      return NextResponse.json(
-        { error: 'Venta no encontrada' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Venta no encontrada' }, { status: 404 });
     }
 
     return NextResponse.json(sale);
   } catch (error) {
     console.error('Error al obtener venta:', error);
-    return NextResponse.json(
-      { error: 'Error al obtener la venta' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Error al obtener la venta' }, { status: 500 });
   }
 }
 
 // PUT para actualizar una venta
-export async function PUT(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     // Esperar a que params esté disponible
     const paramsData = await params;
     const id = parseInt(paramsData.id);
 
     if (isNaN(id)) {
-      return NextResponse.json(
-        { error: 'ID de venta inválido' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'ID de venta inválido' }, { status: 400 });
     }
 
     const body = await request.json();
@@ -91,7 +73,7 @@ export async function PUT(
       payment_method,
       customer_id = null,
       customer_data = null,
-      user_id = null
+      user_id = null,
     } = body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -102,14 +84,10 @@ export async function PUT(
     }
 
     // Validar medio de pago si se proporciona
-    if (
-      payment_method &&
-      payment_method !== 'efectivo' &&
-      payment_method !== 'transferencia'
-    ) {
+    if (payment_method && payment_method !== 'efectivo' && payment_method !== 'transferencia') {
       return NextResponse.json(
         {
-          error: "Medio de pago inválido. Debe ser 'efectivo' o 'transferencia'"
+          error: "Medio de pago inválido. Debe ser 'efectivo' o 'transferencia'",
         },
         { status: 400 }
       );
@@ -119,15 +97,12 @@ export async function PUT(
     const currentSale = await prisma.sale.findUnique({
       where: { id },
       include: {
-        items: true
-      }
+        items: true,
+      },
     });
 
     if (!currentSale) {
-      return NextResponse.json(
-        { error: 'Venta no encontrada' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Venta no encontrada' }, { status: 404 });
     }
 
     // Procesar cliente
@@ -141,21 +116,18 @@ export async function PUT(
           whatsapp: customer_data.whatsapp || null,
           instagram: customer_data.instagram || null,
           facebook: customer_data.facebook || null,
-          first_purchase_date: new Date()
-        }
+          first_purchase_date: new Date(),
+        },
       });
       finalCustomerId = newCustomer.id;
     } else if (customer_id) {
       // Verificar que el cliente existe
       const customer = await prisma.customer.findUnique({
-        where: { id: customer_id }
+        where: { id: customer_id },
       });
 
       if (!customer) {
-        return NextResponse.json(
-          { error: 'Cliente no encontrado' },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
       }
 
       finalCustomerId = customer_id;
@@ -164,7 +136,7 @@ export async function PUT(
       if (!customer.first_purchase_date) {
         await prisma.customer.update({
           where: { id: customer_id },
-          data: { first_purchase_date: new Date() }
+          data: { first_purchase_date: new Date() },
         });
       }
     }
@@ -175,17 +147,17 @@ export async function PUT(
         where: { id: currentItem.product_id },
         data: {
           stock: {
-            increment: currentItem.quantity
-          }
-        }
+            increment: currentItem.quantity,
+          },
+        },
       });
     }
 
     // Eliminar todos los items actuales para la venta
     await prisma.saleItem.deleteMany({
       where: {
-        sale_id: id
-      }
+        sale_id: id,
+      },
     });
 
     // Obtener el tipo de cambio actual o usar el existente
@@ -203,7 +175,7 @@ export async function PUT(
 
       // Obtener el producto
       const product = await prisma.product.findUnique({
-        where: { id: product_id }
+        where: { id: product_id },
       });
 
       if (!product) {
@@ -226,17 +198,16 @@ export async function PUT(
 
       // Usar el precio en ARS que viene del frontend o calcularlo
       const final_price_ars =
-        price_ars ||
-        calculateArsPrice(final_selling_price, exchange_rate_value);
+        price_ars || calculateArsPrice(final_selling_price, exchange_rate_value);
 
       // Actualizar stock
       await prisma.product.update({
         where: { id: product_id },
         data: {
           stock: {
-            decrement: quantity
-          }
-        }
+            decrement: quantity,
+          },
+        },
       });
 
       // Crear nuevo item
@@ -246,8 +217,8 @@ export async function PUT(
           product_id,
           quantity,
           selling_price: final_selling_price,
-          price_ars: final_price_ars
-        }
+          price_ars: final_price_ars,
+        },
       });
 
       newSaleItems.push(newItem);
@@ -265,94 +236,81 @@ export async function PUT(
         customer_id: finalCustomerId,
         user_id: user_id || currentSale.user_id, // Mantener el usuario original si no se proporciona uno nuevo
         updated_at: new Date(),
-        exchange_rate: exchange_rate_value
+        exchange_rate: exchange_rate_value,
       },
       include: {
         items: {
           include: {
-            product: true
-          }
+            product: true,
+          },
         },
-        customer: true
-      }
+        customer: true,
+      },
     });
 
     return NextResponse.json(updatedSale);
   } catch (error: unknown) {
     console.error('Error al actualizar la venta:', error);
 
-    const errorMessage =
-      error instanceof Error ? error.message : 'Error al actualizar la venta';
+    const errorMessage = error instanceof Error ? error.message : 'Error al actualizar la venta';
 
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
 // DELETE para eliminar una venta
-export async function DELETE(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     // Esperar a que params esté disponible
     const paramsData = await params;
     const id = parseInt(paramsData.id);
 
     if (isNaN(id)) {
-      return NextResponse.json(
-        { error: 'ID de venta inválido' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'ID de venta inválido' }, { status: 400 });
     }
 
     // Comprobar si la venta existe
     const existingSale = await prisma.sale.findUnique({
       where: { id },
       include: {
-        items: true
-      }
+        items: true,
+      },
     });
 
     if (!existingSale) {
-      return NextResponse.json(
-        { error: 'Venta no encontrada' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Venta no encontrada' }, { status: 404 });
     }
 
     // Iniciar una transacción para garantizar que todas las operaciones sean atómicas
     await prisma.$transaction(
-      async (tx) => {
+      async tx => {
         // Primero, restaurar el stock de los productos de la venta
         for (const item of existingSale.items) {
           await tx.product.update({
             where: { id: item.product_id },
-            data: { stock: { increment: item.quantity } }
+            data: { stock: { increment: item.quantity } },
           });
         }
 
         // Eliminar la venta (los items se eliminarán automáticamente gracias a onDelete: Cascade)
         await tx.sale.delete({
-          where: { id }
+          where: { id },
         });
       },
       {
         // Configuración de la transacción: aumentar el tiempo de espera a 15 segundos
         timeout: 15000, // 15 segundos en lugar de los 5 segundos predeterminados
         maxWait: 15000, // Tiempo máximo de espera para adquirir una conexión
-        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted // Nivel de aislamiento
+        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, // Nivel de aislamiento
       }
     );
 
     return NextResponse.json({
       success: true,
-      message: 'Venta eliminada correctamente'
+      message: 'Venta eliminada correctamente',
     });
   } catch (error) {
     console.error('Error al eliminar la venta:', error);
-    return NextResponse.json(
-      { error: 'Error al eliminar la venta' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Error al eliminar la venta' }, { status: 500 });
   }
 }

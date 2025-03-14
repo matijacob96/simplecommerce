@@ -11,13 +11,13 @@ import {
   Form,
   Modal,
   Popconfirm,
-  InputNumber
+  InputNumber,
 } from 'antd';
 import {
   EditOutlined,
   DeleteOutlined,
   PlusOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import { toaster } from '../components/ui/toaster';
 
@@ -87,7 +87,7 @@ export default function CategoriesPage() {
       const response = await fetch('/api/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newCategoryName })
+        body: JSON.stringify({ name: newCategoryName }),
       });
 
       if (response.ok) {
@@ -100,8 +100,7 @@ export default function CategoriesPage() {
         throw new Error(errorData.error || 'Error desconocido');
       }
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Error desconocido';
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       showError(errorMessage);
     } finally {
       setIsAdding(false);
@@ -119,24 +118,18 @@ export default function CategoriesPage() {
       const payload = {
         name: values.name,
         profit_margin:
-          values.profit_margin === undefined
-            ? null
-            : Number(values.profit_margin) / 100
+          values.profit_margin === undefined ? null : Number(values.profit_margin) / 100,
       };
 
       const response = await fetch(`/api/categories/${categoryId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
         const updatedCategory = await response.json();
-        setCategories(
-          categories.map((cat) =>
-            cat.id === categoryId ? updatedCategory : cat
-          )
-        );
+        setCategories(categories.map(cat => (cat.id === categoryId ? updatedCategory : cat)));
         setEditModalVisible(false);
         editForm.resetFields();
         showSuccess('Categoría actualizada correctamente');
@@ -145,8 +138,7 @@ export default function CategoriesPage() {
         throw new Error(errorData.error || 'Error desconocido');
       }
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Error desconocido';
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       showError(errorMessage);
     } finally {
       setLoading(false);
@@ -157,25 +149,22 @@ export default function CategoriesPage() {
     setIsDeletingId(categoryId);
     try {
       const response = await fetch(`/api/categories/${categoryId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       });
 
       if (response.ok) {
-        setCategories(categories.filter((cat) => cat.id !== categoryId));
+        setCategories(categories.filter(cat => cat.id !== categoryId));
         showSuccess('Categoría eliminada correctamente');
       } else {
         const errorData = (await response.json()) as ApiError;
         if (errorData.productCount) {
-          showError(
-            `No se puede eliminar (${errorData.productCount} productos asociados)`
-          );
+          showError(`No se puede eliminar (${errorData.productCount} productos asociados)`);
         } else {
           throw new Error(errorData.error || 'Error al eliminar');
         }
       }
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Error desconocido';
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       showError(errorMessage);
     } finally {
       setIsDeletingId(null);
@@ -191,7 +180,7 @@ export default function CategoriesPage() {
 
     editForm.setFieldsValue({
       name: category.name,
-      profit_margin: profitMarginValue
+      profit_margin: profitMarginValue,
     });
     setEditModalVisible(true);
   };
@@ -200,12 +189,12 @@ export default function CategoriesPage() {
     {
       title: 'ID',
       dataIndex: 'id',
-      key: 'id'
+      key: 'id',
     },
     {
       title: 'Nombre',
       dataIndex: 'name',
-      key: 'name'
+      key: 'name',
     },
     {
       title: 'Margen de Ganancia',
@@ -216,7 +205,7 @@ export default function CategoriesPage() {
           return <Text type="secondary">Valor predeterminado</Text>;
         }
         return `${(Number(profit_margin) * 100).toFixed(1)}%`;
-      }
+      },
     },
     {
       title: 'Fecha de Creación',
@@ -225,18 +214,14 @@ export default function CategoriesPage() {
       render: (text: string) => {
         const date = new Date(text);
         return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-      }
+      },
     },
     {
       title: 'Acciones',
       key: 'actions',
       render: (_: unknown, record: Category) => (
         <Space size="middle">
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => showEditModal(record)}
-          />
+          <Button type="link" icon={<EditOutlined />} onClick={() => showEditModal(record)} />
           <Popconfirm
             title="¿Estás seguro de eliminar esta categoría?"
             description={`¿Realmente deseas eliminar "${record.name}"?`}
@@ -253,8 +238,8 @@ export default function CategoriesPage() {
             />
           </Popconfirm>
         </Space>
-      )
-    }
+      ),
+    },
   ];
 
   return (
@@ -273,24 +258,19 @@ export default function CategoriesPage() {
               rules={[
                 {
                   required: true,
-                  message: 'Por favor ingresa un nombre para la categoría'
-                }
+                  message: 'Por favor ingresa un nombre para la categoría',
+                },
               ]}
             >
               <Input
                 placeholder="Nombre de la categoría"
                 value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
+                onChange={e => setNewCategoryName(e.target.value)}
                 style={{ width: 300 }}
               />
             </Form.Item>
             <Form.Item>
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={isAdding}
-                icon={<PlusOutlined />}
-              >
+              <Button type="primary" htmlType="submit" loading={isAdding} icon={<PlusOutlined />}>
                 Agregar Categoría
               </Button>
             </Form.Item>
@@ -320,8 +300,8 @@ export default function CategoriesPage() {
             rules={[
               {
                 required: true,
-                message: 'Por favor ingresa el nombre de la categoría'
-              }
+                message: 'Por favor ingresa el nombre de la categoría',
+              },
             ]}
           >
             <Input placeholder="Nombre de la categoría" />

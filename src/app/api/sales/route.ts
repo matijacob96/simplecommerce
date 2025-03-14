@@ -28,23 +28,20 @@ export async function GET() {
       include: {
         items: {
           include: {
-            product: true
-          }
+            product: true,
+          },
         },
-        customer: true
+        customer: true,
       },
       orderBy: {
-        created_at: 'desc'
-      }
+        created_at: 'desc',
+      },
     });
 
     return NextResponse.json(sales);
   } catch (error) {
     console.error('Error al obtener ventas:', error);
-    return NextResponse.json(
-      { error: 'Error al obtener las ventas' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Error al obtener las ventas' }, { status: 500 });
   }
 }
 
@@ -57,7 +54,7 @@ export async function POST(request: Request) {
       payment_method,
       customer_id = null,
       customer_data = null,
-      user_id = null
+      user_id = null,
     } = body;
 
     // Validar items y medio de pago
@@ -71,7 +68,7 @@ export async function POST(request: Request) {
     if (payment_method !== 'efectivo' && payment_method !== 'transferencia') {
       return NextResponse.json(
         {
-          error: "Medio de pago inválido. Debe ser 'efectivo' o 'transferencia'"
+          error: "Medio de pago inválido. Debe ser 'efectivo' o 'transferencia'",
         },
         { status: 400 }
       );
@@ -91,21 +88,18 @@ export async function POST(request: Request) {
           whatsapp: customer_data.whatsapp || null,
           instagram: customer_data.instagram || null,
           facebook: customer_data.facebook || null,
-          first_purchase_date: new Date()
-        }
+          first_purchase_date: new Date(),
+        },
       });
       finalCustomerId = newCustomer.id;
     } else if (customer_id) {
       // Verificar que el cliente existe
       const customer = await prisma.customer.findUnique({
-        where: { id: customer_id }
+        where: { id: customer_id },
       });
 
       if (!customer) {
-        return NextResponse.json(
-          { error: 'Cliente no encontrado' },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
       }
 
       finalCustomerId = customer_id;
@@ -114,7 +108,7 @@ export async function POST(request: Request) {
       if (!customer.first_purchase_date) {
         await prisma.customer.update({
           where: { id: customer_id },
-          data: { first_purchase_date: new Date() }
+          data: { first_purchase_date: new Date() },
         });
       }
     }
@@ -129,7 +123,7 @@ export async function POST(request: Request) {
 
       // Obtener el producto
       const product = await prisma.product.findUnique({
-        where: { id: product_id }
+        where: { id: product_id },
       });
 
       if (!product) {
@@ -151,24 +145,23 @@ export async function POST(request: Request) {
       const final_selling_price = selling_price;
 
       // Usar precio en ARS proporcionado o calcularlo
-      const final_price_ars =
-        price_ars || calculateArsPrice(final_selling_price, exchange_rate);
+      const final_price_ars = price_ars || calculateArsPrice(final_selling_price, exchange_rate);
 
       // Actualizar stock
       await prisma.product.update({
         where: { id: product_id },
         data: {
           stock: {
-            decrement: quantity
-          }
-        }
+            decrement: quantity,
+          },
+        },
       });
 
       saleItemsData.push({
         product_id,
         quantity,
         selling_price: final_selling_price,
-        price_ars: final_price_ars
+        price_ars: final_price_ars,
       });
 
       total += final_selling_price * quantity;
@@ -184,32 +177,31 @@ export async function POST(request: Request) {
         user_id,
         customer: finalCustomerId
           ? {
-              connect: { id: finalCustomerId }
+              connect: { id: finalCustomerId },
             }
           : undefined,
         created_at: new Date(),
         updated_at: new Date(),
         exchange_rate,
         items: {
-          create: saleItemsData
-        }
+          create: saleItemsData,
+        },
       },
       include: {
         items: {
           include: {
-            product: true
-          }
+            product: true,
+          },
         },
-        customer: true
-      }
+        customer: true,
+      },
     });
 
     return NextResponse.json(sale);
   } catch (error: unknown) {
     console.error('Error al crear la venta:', error);
 
-    const errorMessage =
-      error instanceof Error ? error.message : 'Error al crear la venta';
+    const errorMessage = error instanceof Error ? error.message : 'Error al crear la venta';
 
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }

@@ -11,14 +11,14 @@ export function formatDate(dateString: string): string {
     if (!dateString || isNaN(Date.parse(dateString))) {
       return 'Fecha no disponible';
     }
-    
+
     const date = new Date(dateString);
     return new Intl.DateTimeFormat('es-ES', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     }).format(date);
   } catch (error) {
     console.error('Error al formatear fecha:', error);
@@ -41,15 +41,15 @@ export function formatShortDate(dateString: string): string {
     if (!dateString || isNaN(Date.parse(dateString))) {
       return 'N/A';
     }
-    
+
     const date = new Date(dateString);
     return new Intl.DateTimeFormat('es-AR', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric'
+      year: 'numeric',
     }).format(date);
   } catch (error) {
     console.error('Error al formatear fecha corta:', error);
     return 'N/A';
   }
-} 
+}

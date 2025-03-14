@@ -18,14 +18,9 @@ import {
   Tooltip,
   Drawer,
   ConfigProvider,
-  App
+  App,
 } from 'antd';
-import {
-  SearchOutlined,
-  FilterOutlined,
-  InboxOutlined,
-  DollarOutlined
-} from '@ant-design/icons';
+import { SearchOutlined, FilterOutlined, InboxOutlined, DollarOutlined } from '@ant-design/icons';
 import { Product, useAppState } from '@/lib/AppStateContext';
 
 const { Option } = Select;
@@ -75,13 +70,13 @@ const SafeImage = ({ src, alt, style, ...props }: SafeImageProps) => {
           width: style?.width || '120px',
           height: style?.height || '120px',
           borderRadius: '4px',
-          ...style
+          ...style,
         }}
       >
         <InboxOutlined
           style={{
             fontSize: 48,
-            color: '#d9d9d9'
+            color: '#d9d9d9',
           }}
         />
       </div>
@@ -151,7 +146,7 @@ function CatalogContent() {
     handleAvailabilityChange,
     handleSortChange,
     getPrices,
-    refreshData
+    refreshData,
   } = useAppState();
 
   // Estado local solo para el drawer de filtros
@@ -177,11 +172,18 @@ function CatalogContent() {
   // Lista de categorías para el selector
   const categoryItems = [
     { label: 'Todos', value: 'all' },
-    ...categories.map((category) => ({
+    ...categories.map(category => ({
       label: category.name,
-      value: category.id.toString()
-    }))
+      value: category.id.toString(),
+    })),
   ];
+
+  // Función para obtener el nombre de la categoría seleccionada
+  const getSelectedCategoryName = () => {
+    if (filter === 'all') return 'Todos';
+    const selectedCategory = categories.find(c => c.id.toString() === filter);
+    return selectedCategory ? selectedCategory.name : 'Categoría desconocida';
+  };
 
   // Lista de opciones de ordenamiento
   const sortOptions = [
@@ -189,7 +191,7 @@ function CatalogContent() {
     { label: 'Precio: menor a mayor', value: 'price_asc' },
     { label: 'Precio: mayor a menor', value: 'price_desc' },
     { label: 'Nombre: A-Z', value: 'name_asc' },
-    { label: 'Nombre: Z-A', value: 'name_desc' }
+    { label: 'Nombre: Z-A', value: 'name_desc' },
   ];
 
   function handleRefreshData() {
@@ -207,7 +209,7 @@ function CatalogContent() {
           usdPrice: 0,
           arsPrice: 0,
           formattedUsd: '$ 0.00',
-          formattedArs: '$ 0.00'
+          formattedArs: '$ 0.00',
         };
       }
     },
@@ -227,7 +229,7 @@ function CatalogContent() {
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          boxSizing: 'border-box'
+          boxSizing: 'border-box',
         }}
       >
         {/* Cards superiores con altura fija */}
@@ -248,7 +250,7 @@ function CatalogContent() {
                 <Input
                   placeholder="Buscar producto por nombre..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={e => setSearch(e.target.value)}
                   prefix={<SearchOutlined />}
                   size="large"
                   style={{ flex: 1 }}
@@ -312,9 +314,7 @@ function CatalogContent() {
                         size="small"
                       />
                       <Text style={{ marginLeft: 8 }}>
-                        {onlyAvailable
-                          ? 'Productos con stock'
-                          : 'Todos los productos'}
+                        {onlyAvailable ? 'Productos con stock' : 'Todos los productos'}
                       </Text>
                     </div>
                   </div>
@@ -332,12 +332,24 @@ function CatalogContent() {
                           size="middle"
                           popupMatchSelectWidth={false}
                         >
-                          {categoryItems.map((cat) => (
+                          {categoryItems.map(cat => (
                             <Option key={cat.value} value={cat.value}>
                               {cat.label}
                             </Option>
                           ))}
                         </Select>
+                        {filter !== 'all' && (
+                          <Text
+                            type="secondary"
+                            style={{
+                              display: 'block',
+                              marginTop: 4,
+                              fontSize: 12,
+                            }}
+                          >
+                            Filtrando por: {getSelectedCategoryName()}
+                          </Text>
+                        )}
                       </div>
                     </Col>
                     <Col span={12}>
@@ -351,7 +363,7 @@ function CatalogContent() {
                           size="middle"
                           popupMatchSelectWidth={false}
                         >
-                          {sortOptions.map((option) => (
+                          {sortOptions.map(option => (
                             <Option key={option.value} value={option.value}>
                               {option.label}
                             </Option>
@@ -408,9 +420,7 @@ function CatalogContent() {
                   unCheckedChildren="No"
                 />
                 <Text style={{ marginLeft: 12 }}>
-                  {onlyAvailable
-                    ? 'Productos con stock'
-                    : 'Todos los productos'}
+                  {onlyAvailable ? 'Productos con stock' : 'Todos los productos'}
                 </Text>
               </div>
             </div>
@@ -428,12 +438,17 @@ function CatalogContent() {
                     size="middle"
                     popupMatchSelectWidth={false}
                   >
-                    {categoryItems.map((cat) => (
+                    {categoryItems.map(cat => (
                       <Option key={cat.value} value={cat.value}>
                         {cat.label}
                       </Option>
                     ))}
                   </Select>
+                  {filter !== 'all' && (
+                    <Text type="secondary" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
+                      Filtrando por: {getSelectedCategoryName()}
+                    </Text>
+                  )}
                 </div>
               </Col>
               <Col span={12}>
@@ -447,7 +462,7 @@ function CatalogContent() {
                     size="middle"
                     popupMatchSelectWidth={false}
                   >
-                    {sortOptions.map((option) => (
+                    {sortOptions.map(option => (
                       <Option key={option.value} value={option.value}>
                         {option.label}
                       </Option>
@@ -469,9 +484,7 @@ function CatalogContent() {
                 <div style={{ marginTop: 8 }}>
                   <Text type="secondary">
                     <DollarOutlined /> Dólar Blue:{' '}
-                    {dolarBlue
-                      ? `$${dolarBlue.venta.toLocaleString('es-AR')}`
-                      : 'No disponible'}
+                    {dolarBlue ? `$${dolarBlue.venta.toLocaleString('es-AR')}` : 'No disponible'}
                   </Text>
                 </div>
               )
@@ -487,28 +500,35 @@ function CatalogContent() {
             style={{
               height: '100%',
               display: 'flex',
-              flexDirection: 'column'
+              flexDirection: 'column',
             }}
             styles={{
               header: {
                 position: 'sticky',
                 top: 0,
                 zIndex: 1,
-                backgroundColor: '#fff'
+                backgroundColor: '#fff',
               },
               body: {
                 padding: 0,
                 overflow: 'hidden',
-                flex: 1
-              }
+                flex: 1,
+              },
             }}
+            extra={
+              filter !== 'all' && (
+                <Text type="secondary" style={{ marginRight: 8 }}>
+                  Categoría: <Text strong>{getSelectedCategoryName()}</Text>
+                </Text>
+              )
+            }
           >
             <div
               className="invisible-scrollbar"
               style={{
                 padding: loading ? 0 : 16,
                 overflow: 'auto',
-                height: '100%'
+                height: '100%',
               }}
             >
               {loading ? (
@@ -519,7 +539,7 @@ function CatalogContent() {
                     alignItems: 'center',
                     padding: 64,
                     width: '100%',
-                    height: '100%'
+                    height: '100%',
                   }}
                 >
                   <Spin size="large" />
@@ -542,7 +562,7 @@ function CatalogContent() {
                     </Empty>
                   ) : (
                     <Row gutter={[16, 16]}>
-                      {filteredProducts.map((product) => {
+                      {filteredProducts.map(product => {
                         // Verificación básica de producto
                         if (!product || !product.id) return null;
 
@@ -553,10 +573,7 @@ function CatalogContent() {
                           // Mostrar el resultado del producto
                           return (
                             <Col xs={24} md={12} key={product.id}>
-                              <Card
-                                variant="outlined"
-                                style={{ width: '100%', height: '100%' }}
-                              >
+                              <Card variant="outlined" style={{ width: '100%', height: '100%' }}>
                                 {/* Mobile Layout */}
                                 {isMobile && (
                                   <>
@@ -566,7 +583,7 @@ function CatalogContent() {
                                         display: 'flex',
                                         justifyContent: 'center',
                                         width: '100%',
-                                        marginBottom: '16px'
+                                        marginBottom: '16px',
                                       }}
                                     >
                                       <SafeImage
@@ -576,7 +593,7 @@ function CatalogContent() {
                                           width: '200px',
                                           height: '200px',
                                           objectFit: 'cover',
-                                          borderRadius: '4px'
+                                          borderRadius: '4px',
                                         }}
                                         preview={false}
                                         fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNmNWY1ZjUiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjZDlkOWQ5Ij5JbWFnZW4gbm8gZGlzcG9uaWJsZTwvdGV4dD48L3N2Zz4="
@@ -588,7 +605,7 @@ function CatalogContent() {
                                       <div
                                         style={{
                                           width: '100%',
-                                          marginBottom: '12px'
+                                          marginBottom: '12px',
                                         }}
                                       >
                                         <Title
@@ -599,7 +616,7 @@ function CatalogContent() {
                                             width: '100%',
                                             whiteSpace: 'nowrap',
                                             overflow: 'hidden',
-                                            textOverflow: 'ellipsis'
+                                            textOverflow: 'ellipsis',
                                           }}
                                         >
                                           {product.name}
@@ -617,7 +634,7 @@ function CatalogContent() {
                                         <Text
                                           style={{
                                             fontSize: 14,
-                                            color: '#8c8c8c'
+                                            color: '#8c8c8c',
                                           }}
                                         >
                                           {prices.formattedUsd}
@@ -628,7 +645,7 @@ function CatalogContent() {
                                           level={3}
                                           style={{
                                             margin: 0,
-                                            color: '#52c41a'
+                                            color: '#52c41a',
                                           }}
                                         >
                                           {prices.formattedArs}
@@ -642,12 +659,11 @@ function CatalogContent() {
                                     <Text
                                       style={{
                                         color:
-                                          product.stock <= 5 &&
-                                          product.stock > 0
+                                          product.stock <= 5 && product.stock > 0
                                             ? '#ff4d4f'
                                             : undefined,
                                         display: 'block',
-                                        textAlign: 'right'
+                                        textAlign: 'right',
                                       }}
                                     >
                                       Stock: {product.stock}{' '}
@@ -671,7 +687,7 @@ function CatalogContent() {
                                           height: '120px',
                                           objectFit: 'cover',
                                           borderRadius: '4px',
-                                          display: 'block'
+                                          display: 'block',
                                         }}
                                         preview={false}
                                         fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNmNWY1ZjUiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZm9udC1mYW1pbHk9IkFyaWFsIiBmb250LXNpemU9IjE0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjZDlkOWQ5Ij5JbWFnZW4gbm8gZGlzcG9uaWJsZTwvdGV4dD48L3N2Zz4="
@@ -691,7 +707,7 @@ function CatalogContent() {
                                               ellipsis={{ tooltip: true }}
                                               style={{
                                                 margin: 0,
-                                                width: '100%'
+                                                width: '100%',
                                               }}
                                             >
                                               {product.name}
@@ -707,7 +723,7 @@ function CatalogContent() {
                                                 style={{
                                                   fontSize: 14,
                                                   color: '#8c8c8c',
-                                                  display: 'block'
+                                                  display: 'block',
                                                 }}
                                               >
                                                 {prices.formattedUsd}
@@ -716,7 +732,7 @@ function CatalogContent() {
                                                 level={3}
                                                 style={{
                                                   margin: 0,
-                                                  color: '#52c41a'
+                                                  color: '#52c41a',
                                                 }}
                                               >
                                                 {prices.formattedArs}
@@ -729,22 +745,17 @@ function CatalogContent() {
                                       <Divider style={{ margin: '12px 0' }} />
 
                                       <Row>
-                                        <Col
-                                          span={24}
-                                          style={{ textAlign: 'right' }}
-                                        >
+                                        <Col span={24} style={{ textAlign: 'right' }}>
                                           <Text
                                             style={{
                                               color:
-                                                product.stock <= 5 &&
-                                                product.stock > 0
+                                                product.stock <= 5 && product.stock > 0
                                                   ? '#ff4d4f'
-                                                  : undefined
+                                                  : undefined,
                                             }}
                                           >
                                             Stock: {product.stock}{' '}
-                                            {product.stock <= 5 &&
-                                            product.stock > 0
+                                            {product.stock <= 5 && product.stock > 0
                                               ? '(¡Últimas unidades!)'
                                               : ''}
                                           </Text>
@@ -800,12 +811,12 @@ export default function Catalog() {
         theme={{
           components: {
             Image: {
-              colorTextPlaceholder: '#f0f0f0'
+              colorTextPlaceholder: '#f0f0f0',
             },
             Spin: {
-              colorPrimary: '#1890ff'
-            }
-          }
+              colorPrimary: '#1890ff',
+            },
+          },
         }}
       >
         <Suspense
@@ -817,7 +828,7 @@ export default function Catalog() {
                 alignItems: 'center',
                 padding: 64,
                 width: '100%',
-                height: 'calc(100vh - 64px)'
+                height: 'calc(100vh - 64px)',
               }}
             >
               <Spin size="large" />
