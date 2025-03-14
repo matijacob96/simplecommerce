@@ -761,6 +761,8 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
         clearTimeout(timerId);
       };
     }
+
+    return undefined; // Devolver explícitamente undefined para evitar el error de tipo
   }, [sortBy, sortParam, updateUrlWithFilters]);
 
   // Asegurar que no se actualice el estado después de desmontado
