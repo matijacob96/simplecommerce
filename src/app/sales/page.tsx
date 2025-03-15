@@ -14,6 +14,7 @@ import {
   Row,
   Col,
   Tooltip,
+  App,
 } from 'antd';
 import { StyleProvider } from '@ant-design/cssinjs';
 import type { ColumnsType } from 'antd/es/table';
@@ -41,7 +42,6 @@ import {
 } from '../../utils/priceUtils';
 
 const { Title, Text } = Typography;
-const { confirm } = Modal;
 
 export default function SalesPage() {
   const [sales, setSales] = useState<Sale[]>([]);
@@ -49,6 +49,9 @@ export default function SalesPage() {
 
   const [detailsSale, setDetailsSale] = useState<Sale | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Obtenemos la API de modal desde el hook useApp
+  const { modal, message } = App.useApp();
 
   // Estado para el ordenamiento
   const [tableParams, setTableParams] = useState<{
@@ -83,7 +86,7 @@ export default function SalesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []); // No hay dependencias porque solo usa funciones de estado
+  }, [message]); // Añadimos message como dependencia
 
   useEffect(() => {
     fetchSaleData();
@@ -109,7 +112,8 @@ export default function SalesPage() {
   };
 
   const showDeleteConfirm = (id: number) => {
-    confirm({
+    // Usamos modal.confirm en lugar de confirm
+    modal.confirm({
       title: '¿Estás seguro de eliminar esta venta?',
       icon: <ExclamationCircleOutlined />,
       content: 'Esta acción restaurará el stock de los productos. No se puede deshacer.',
@@ -295,192 +299,224 @@ export default function SalesPage() {
   ];
 
   return (
-    <StyleProvider hashPriority="high">
-      <div style={{ padding: 16 }}>
-        <Card
-          title={
-            <Row justify="space-between" align="middle">
-              <Col>
-                <Title style={{ margin: 0 }} level={3}>
-                  Ventas
-                </Title>
-              </Col>
-              <Col>
-                <Link href="/sales/new">
-                  <Button type="primary" icon={<PlusOutlined />}>
-                    Nueva Venta
-                  </Button>
-                </Link>
-              </Col>
-            </Row>
-          }
-        >
-          <div style={{ position: 'relative', minHeight: '200px' }}>
-            <Table
-              columns={columns}
-              dataSource={getSortedSales()}
-              rowKey="id"
-              onChange={handleTableChange}
-              loading={isLoading}
-              pagination={{
-                ...tableParams.pagination,
-                showSizeChanger: true,
-                pageSizeOptions: ['10', '20', '50', '100'],
-                showTotal: total => `Total ${total} ventas`,
-              }}
-            />
-          </div>
-        </Card>
-
-        {/* Modal para ver detalles de la venta */}
-        <Modal
-          title={`Detalles de Venta #${detailsSale?.id}`}
-          open={isModalOpen}
-          onCancel={closeModal}
-          footer={[
-            <Button key="back" onClick={closeModal}>
-              Cerrar
-            </Button>,
-          ]}
-          width={900}
-        >
-          {detailsSale && (
-            <div>
-              <Descriptions
-                bordered
-                column={2}
-                size="middle"
-                layout="horizontal"
-                style={{ marginBottom: 20 }}
-              >
-                <Descriptions.Item
-                  label="Fecha"
-                  labelStyle={{ fontWeight: 'bold', width: '140px' }}
-                >
-                  <Text>{formatDate(detailsSale.created_at)}</Text>
-                </Descriptions.Item>
-                <Descriptions.Item
-                  label="Total"
-                  labelStyle={{ fontWeight: 'bold', width: '140px' }}
-                >
-                  <Text strong>
-                    {detailsSale.total_ars
-                      ? formatDualPrice(detailsSale.total, detailsSale.total_ars)
-                      : formatPriceWithExchange(detailsSale.total, detailsSale.exchange_rate)}
-                  </Text>
-                </Descriptions.Item>
-                <Descriptions.Item
-                  label="Método de Pago"
-                  labelStyle={{ fontWeight: 'bold', width: '140px' }}
-                >
-                  {renderPaymentMethod(detailsSale.payment_method)}
-                </Descriptions.Item>
-                <Descriptions.Item
-                  label="Cantidad de Productos"
-                  labelStyle={{ fontWeight: 'bold', width: '140px' }}
-                >
-                  <Text>{detailsSale.items.length}</Text>
-                </Descriptions.Item>
-                <Descriptions.Item
-                  label="Cliente"
-                  labelStyle={{ fontWeight: 'bold', width: '140px' }}
-                  span={2}
-                >
-                  {detailsSale.customer ? (
-                    <div>
-                      <Text strong style={{ margin: 0 }}>
-                        {detailsSale.customer.name}
-                      </Text>
-                      <Space style={{ marginTop: 8 }}>
-                        {detailsSale.customer.whatsapp && (
-                          <Tooltip title={`WhatsApp: ${detailsSale.customer.whatsapp}`}>
-                            <a
-                              href={`https://wa.me/${detailsSale.customer.whatsapp.replace(
-                                /\D/g,
-                                ''
-                              )}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <WhatsAppOutlined style={{ fontSize: '18px', color: '#25D366' }} />
-                            </a>
-                          </Tooltip>
-                        )}
-                        {detailsSale.customer.instagram && (
-                          <Tooltip title={`Instagram: ${detailsSale.customer.instagram}`}>
-                            <a
-                              href={`https://instagram.com/${detailsSale.customer.instagram.replace(
-                                '@',
-                                ''
-                              )}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <InstagramOutlined style={{ fontSize: '18px', color: '#E1306C' }} />
-                            </a>
-                          </Tooltip>
-                        )}
-                        {detailsSale.customer.facebook && (
-                          <Tooltip title={`Facebook: ${detailsSale.customer.facebook}`}>
-                            <a
-                              href={`https://facebook.com/${detailsSale.customer.facebook}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <FacebookOutlined style={{ fontSize: '18px', color: '#1877F2' }} />
-                            </a>
-                          </Tooltip>
-                        )}
-                      </Space>
-                    </div>
-                  ) : (
-                    <Text type="secondary">Cliente no registrado</Text>
-                  )}
-                </Descriptions.Item>
-              </Descriptions>
-
-              <Title level={4} style={{ marginTop: 20, marginBottom: 16 }}>
-                Productos
-              </Title>
-
+    <App>
+      <StyleProvider hashPriority="high">
+        <div style={{ padding: 16 }}>
+          <Card
+            title={
+              <Row justify="space-between" align="middle">
+                <Col>
+                  <Title style={{ margin: 0 }} level={3}>
+                    Ventas
+                  </Title>
+                </Col>
+                <Col>
+                  <Link href="/sales/new">
+                    <Button type="primary" icon={<PlusOutlined />}>
+                      Nueva Venta
+                    </Button>
+                  </Link>
+                </Col>
+              </Row>
+            }
+          >
+            <div style={{ position: 'relative', minHeight: '200px' }}>
               <Table
-                dataSource={detailsSale.items}
+                columns={columns}
+                dataSource={getSortedSales()}
                 rowKey="id"
-                pagination={false}
-                bordered
-                size="middle"
-                columns={[
-                  {
-                    title: 'Producto',
-                    dataIndex: ['product', 'name'],
-                    key: 'product',
-                  },
-                  {
-                    title: 'Cantidad',
-                    dataIndex: 'quantity',
-                    key: 'quantity',
-                  },
-                  {
-                    title: 'Precio Unitario',
-                    key: 'price',
-                    render: (item: SaleItem) => {
-                      // Si tiene precio en ARS almacenado, usarlo
-                      if (item.price_ars) {
-                        return formatDualPrice(item.selling_price, item.price_ars);
-                      }
+                onChange={handleTableChange}
+                loading={isLoading}
+                pagination={{
+                  ...tableParams.pagination,
+                  showSizeChanger: true,
+                  pageSizeOptions: ['10', '20', '50', '100'],
+                  showTotal: total => `Total ${total} ventas`,
+                }}
+              />
+            </div>
+          </Card>
 
-                      // Si el precio de venta no existe, calcular usando la lógica de margen
-                      if (!item.selling_price) {
-                        const sellingPrice = calculateSellingPrice(item.product);
-                        return formatPriceWithExchange(sellingPrice, detailsSale.exchange_rate);
-                      }
-                      return formatPriceWithExchange(item.selling_price, detailsSale.exchange_rate);
+          {/* Modal para ver detalles de la venta */}
+          <Modal
+            title={`Detalles de Venta #${detailsSale?.id}`}
+            open={isModalOpen}
+            onCancel={closeModal}
+            footer={[
+              <Button key="back" onClick={closeModal}>
+                Cerrar
+              </Button>,
+            ]}
+            width={900}
+          >
+            {detailsSale && (
+              <div>
+                <Descriptions
+                  bordered
+                  column={2}
+                  size="middle"
+                  layout="horizontal"
+                  style={{ marginBottom: 20 }}
+                >
+                  <Descriptions.Item
+                    label="Fecha"
+                    labelStyle={{ fontWeight: 'bold', width: '140px' }}
+                  >
+                    <Text>{formatDate(detailsSale.created_at)}</Text>
+                  </Descriptions.Item>
+                  <Descriptions.Item
+                    label="Total"
+                    labelStyle={{ fontWeight: 'bold', width: '140px' }}
+                  >
+                    <Text strong>
+                      {detailsSale.total_ars
+                        ? formatDualPrice(detailsSale.total, detailsSale.total_ars)
+                        : formatPriceWithExchange(detailsSale.total, detailsSale.exchange_rate)}
+                    </Text>
+                  </Descriptions.Item>
+                  <Descriptions.Item
+                    label="Método de Pago"
+                    labelStyle={{ fontWeight: 'bold', width: '140px' }}
+                  >
+                    {renderPaymentMethod(detailsSale.payment_method)}
+                  </Descriptions.Item>
+                  <Descriptions.Item
+                    label="Cantidad de Productos"
+                    labelStyle={{ fontWeight: 'bold', width: '140px' }}
+                  >
+                    <Text>{detailsSale.items.length}</Text>
+                  </Descriptions.Item>
+                  <Descriptions.Item
+                    label="Cliente"
+                    labelStyle={{ fontWeight: 'bold', width: '140px' }}
+                    span={2}
+                  >
+                    {detailsSale.customer ? (
+                      <div>
+                        <Text strong style={{ margin: 0 }}>
+                          {detailsSale.customer.name}
+                        </Text>
+                        <Space style={{ marginTop: 8 }}>
+                          {detailsSale.customer.whatsapp && (
+                            <Tooltip title={`WhatsApp: ${detailsSale.customer.whatsapp}`}>
+                              <a
+                                href={`https://wa.me/${detailsSale.customer.whatsapp.replace(
+                                  /\D/g,
+                                  ''
+                                )}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <WhatsAppOutlined style={{ fontSize: '18px', color: '#25D366' }} />
+                              </a>
+                            </Tooltip>
+                          )}
+                          {detailsSale.customer.instagram && (
+                            <Tooltip title={`Instagram: ${detailsSale.customer.instagram}`}>
+                              <a
+                                href={`https://instagram.com/${detailsSale.customer.instagram.replace(
+                                  '@',
+                                  ''
+                                )}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <InstagramOutlined style={{ fontSize: '18px', color: '#E1306C' }} />
+                              </a>
+                            </Tooltip>
+                          )}
+                          {detailsSale.customer.facebook && (
+                            <Tooltip title={`Facebook: ${detailsSale.customer.facebook}`}>
+                              <a
+                                href={`https://facebook.com/${detailsSale.customer.facebook}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <FacebookOutlined style={{ fontSize: '18px', color: '#1877F2' }} />
+                              </a>
+                            </Tooltip>
+                          )}
+                        </Space>
+                      </div>
+                    ) : (
+                      <Text type="secondary">Cliente no registrado</Text>
+                    )}
+                  </Descriptions.Item>
+                </Descriptions>
+
+                <Title level={4} style={{ marginTop: 20, marginBottom: 16 }}>
+                  Productos
+                </Title>
+
+                <Table
+                  dataSource={detailsSale.items}
+                  rowKey="id"
+                  pagination={false}
+                  bordered
+                  size="middle"
+                  columns={[
+                    {
+                      title: 'Producto',
+                      dataIndex: ['product', 'name'],
+                      key: 'product',
                     },
-                  },
-                  {
-                    title: 'Subtotal',
-                    key: 'subtotal',
-                    render: (item: SaleItem) => {
+                    {
+                      title: 'Cantidad',
+                      dataIndex: 'quantity',
+                      key: 'quantity',
+                    },
+                    {
+                      title: 'Precio Unitario',
+                      key: 'price',
+                      render: (item: SaleItem) => {
+                        // Si tiene precio en ARS almacenado, usarlo
+                        if (item.price_ars) {
+                          return formatDualPrice(item.selling_price, item.price_ars);
+                        }
+
+                        // Si el precio de venta no existe, calcular usando la lógica de margen
+                        if (!item.selling_price) {
+                          const sellingPrice = calculateSellingPrice(item.product);
+                          return formatPriceWithExchange(sellingPrice, detailsSale.exchange_rate);
+                        }
+                        return formatPriceWithExchange(
+                          item.selling_price,
+                          detailsSale.exchange_rate
+                        );
+                      },
+                    },
+                    {
+                      title: 'Subtotal',
+                      key: 'subtotal',
+                      render: (item: SaleItem) => {
+                        // Calcular el precio de venta si no está disponible
+                        let price = 0;
+                        if (item.selling_price) {
+                          price = toNumber(item.selling_price);
+                        } else {
+                          price = calculateSellingPrice(item.product);
+                        }
+
+                        const quantity = item.quantity;
+                        const subtotalUsd = price * quantity;
+
+                        // Si tiene precio en ARS almacenado, calcular el subtotal en ARS
+                        if (item.price_ars) {
+                          const priceArs = toNumber(item.price_ars);
+                          const subtotalArs = priceArs * quantity;
+                          return formatDualPrice(subtotalUsd, subtotalArs);
+                        }
+
+                        return formatPriceWithExchange(subtotalUsd, detailsSale.exchange_rate);
+                      },
+                    },
+                  ]}
+                  summary={pageData => {
+                    let totalPrice = 0;
+                    let totalPriceArs = 0;
+                    let hasArsPrice = false;
+
+                    pageData.forEach(item => {
                       // Calcular el precio de venta si no está disponible
                       let price = 0;
                       if (item.selling_price) {
@@ -489,63 +525,36 @@ export default function SalesPage() {
                         price = calculateSellingPrice(item.product);
                       }
 
-                      const quantity = item.quantity;
-                      const subtotalUsd = price * quantity;
+                      totalPrice += price * item.quantity;
 
-                      // Si tiene precio en ARS almacenado, calcular el subtotal en ARS
+                      // Si hay precio en ARS almacenado, sumarlo
                       if (item.price_ars) {
-                        const priceArs = toNumber(item.price_ars);
-                        const subtotalArs = priceArs * quantity;
-                        return formatDualPrice(subtotalUsd, subtotalArs);
+                        hasArsPrice = true;
+                        totalPriceArs += toNumber(item.price_ars) * item.quantity;
                       }
+                    });
 
-                      return formatPriceWithExchange(subtotalUsd, detailsSale.exchange_rate);
-                    },
-                  },
-                ]}
-                summary={pageData => {
-                  let totalPrice = 0;
-                  let totalPriceArs = 0;
-                  let hasArsPrice = false;
-
-                  pageData.forEach(item => {
-                    // Calcular el precio de venta si no está disponible
-                    let price = 0;
-                    if (item.selling_price) {
-                      price = toNumber(item.selling_price);
-                    } else {
-                      price = calculateSellingPrice(item.product);
-                    }
-
-                    totalPrice += price * item.quantity;
-
-                    // Si hay precio en ARS almacenado, sumarlo
-                    if (item.price_ars) {
-                      hasArsPrice = true;
-                      totalPriceArs += toNumber(item.price_ars) * item.quantity;
-                    }
-                  });
-
-                  return (
-                    <Table.Summary.Row>
-                      <Table.Summary.Cell index={0} colSpan={3} align="right">
-                        <strong>Total:</strong>
-                      </Table.Summary.Cell>
-                      <Table.Summary.Cell index={1} align="right">
-                        <strong style={{ fontSize: '1.1em' }}>
-                          {hasArsPrice
-                            ? formatDualPrice(totalPrice, totalPriceArs)
-                            : formatPriceWithExchange(totalPrice, detailsSale.exchange_rate)}
-                        </strong>
-                      </Table.Summary.Cell>
-                    </Table.Summary.Row>
-                  );
-                }}
-              />
-            </div>
-          )}
-        </Modal>
-      </div>
-    </StyleProvider>
+                    return (
+                      <Table.Summary.Row>
+                        <Table.Summary.Cell index={0} colSpan={3} align="right">
+                          <strong>Total:</strong>
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={1} align="right">
+                          <strong style={{ fontSize: '1.1em' }}>
+                            {hasArsPrice
+                              ? formatDualPrice(totalPrice, totalPriceArs)
+                              : formatPriceWithExchange(totalPrice, detailsSale.exchange_rate)}
+                          </strong>
+                        </Table.Summary.Cell>
+                      </Table.Summary.Row>
+                    );
+                  }}
+                />
+              </div>
+            )}
+          </Modal>
+        </div>
+      </StyleProvider>
+    </App>
   );
 }

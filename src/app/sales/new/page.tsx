@@ -8,7 +8,6 @@ import {
   Table,
   Select,
   Typography,
-  message,
   Space,
   Divider,
   Empty,
@@ -17,6 +16,7 @@ import {
   Radio,
   Input,
   AutoComplete,
+  App,
 } from 'antd';
 import {
   ShoppingCartOutlined,
@@ -78,6 +78,7 @@ export default function NewSalePage() {
 
   const router = useRouter();
   const { user } = useAuth();
+  const { message } = App.useApp();
 
   // Convertir las funciones fetch a useCallback
   const fetchProducts = useCallback(async () => {
@@ -92,7 +93,7 @@ export default function NewSalePage() {
       console.error('Error:', error);
       message.error('Error al cargar los productos');
     }
-  }, []);
+  }, [message]);
 
   const fetchCustomers = useCallback(async () => {
     try {
@@ -106,7 +107,7 @@ export default function NewSalePage() {
       console.error('Error:', error);
       message.error('Error al cargar los clientes');
     }
-  }, []);
+  }, [message]);
 
   const fetchExchangeRate = useCallback(async () => {
     try {
@@ -548,278 +549,280 @@ export default function NewSalePage() {
   ];
 
   return (
-    <div style={{ padding: 16, width: '100%', boxSizing: 'border-box' }}>
-      <Row gutter={[16, 16]}>
-        <Col span={24}>
-          <Card title="Cliente" style={{ marginBottom: 16 }}>
-            <Row gutter={16} justify="space-between" align="middle">
-              <Col flex="auto">
-                <div className="mb-4">
-                  <AutoComplete
+    <App>
+      <div style={{ padding: 16, width: '100%', boxSizing: 'border-box' }}>
+        <Row gutter={[16, 16]}>
+          <Col span={24}>
+            <Card title="Cliente" style={{ marginBottom: 16 }}>
+              <Row gutter={16} justify="space-between" align="middle">
+                <Col flex="auto">
+                  <div className="mb-4">
+                    <AutoComplete
+                      style={{ width: '100%' }}
+                      placeholder="Sin cliente / Buscar cliente / Crear nuevo"
+                      onChange={handleCustomerChange}
+                      value={
+                        selectedCustomer
+                          ? customers.find(c => c.id === selectedCustomer)?.name
+                          : undefined
+                      }
+                      options={[
+                        { value: '', label: 'Sin cliente' },
+                        { value: 'new', label: '+ Crear nuevo cliente' },
+                        ...customers.map(customer => ({
+                          value: String(customer.id),
+                          label: customer.name,
+                        })),
+                      ]}
+                      filterOption={(inputValue, option) =>
+                        option?.label
+                          ? option.label
+                              .toString()
+                              .toLowerCase()
+                              .indexOf(inputValue.toLowerCase()) !== -1
+                          : false
+                      }
+                    />
+                  </div>
+                </Col>
+                <Col>
+                  <Button icon={<ArrowLeftOutlined />} onClick={() => router.push('/sales')}>
+                    Volver
+                  </Button>
+                </Col>
+              </Row>
+
+              {showNewCustomerForm && (
+                <div
+                  style={{
+                    padding: 16,
+                    background: '#f5f5f5',
+                    borderRadius: 4,
+                    marginTop: 16,
+                  }}
+                >
+                  <Title level={5} style={{ marginBottom: 16 }}>
+                    Nuevo Cliente
+                  </Title>
+                  <Row gutter={[16, 16]}>
+                    <Col xs={24} md={12}>
+                      <div style={{ marginBottom: 12 }}>
+                        <Text>Nombre *</Text>
+                        <Input
+                          placeholder="Nombre del cliente"
+                          value={newCustomerData?.name || ''}
+                          onChange={e => handleNewCustomerInputChange('name', e.target.value)}
+                        />
+                      </div>
+                    </Col>
+                    <Col xs={24} md={12}>
+                      <div style={{ marginBottom: 12 }}>
+                        <Text>WhatsApp</Text>
+                        <Input
+                          placeholder="Número de WhatsApp"
+                          value={newCustomerData?.whatsapp || ''}
+                          onChange={e => handleNewCustomerInputChange('whatsapp', e.target.value)}
+                          prefix={<WhatsAppOutlined />}
+                        />
+                      </div>
+                    </Col>
+                    <Col xs={24} md={12}>
+                      <div style={{ marginBottom: 12 }}>
+                        <Text>Instagram</Text>
+                        <Input
+                          placeholder="Usuario de Instagram"
+                          value={newCustomerData?.instagram || ''}
+                          onChange={e => handleNewCustomerInputChange('instagram', e.target.value)}
+                          prefix={<InstagramOutlined />}
+                        />
+                      </div>
+                    </Col>
+                    <Col xs={24} md={12}>
+                      <div style={{ marginBottom: 12 }}>
+                        <Text>Facebook</Text>
+                        <Input
+                          placeholder="Usuario o URL de Facebook"
+                          value={newCustomerData?.facebook || ''}
+                          onChange={e => handleNewCustomerInputChange('facebook', e.target.value)}
+                          prefix={<FacebookOutlined />}
+                        />
+                      </div>
+                    </Col>
+                  </Row>
+                </div>
+              )}
+            </Card>
+
+            <Card title="Agregar Productos" style={{ marginBottom: 16 }}>
+              <Row gutter={16} align="middle">
+                <Col flex="100px">
+                  <Text>Cantidad</Text>
+                  <InputNumber
+                    min={1}
+                    value={quantity}
+                    onChange={value => setQuantity(value || 1)}
                     style={{ width: '100%' }}
-                    placeholder="Sin cliente / Buscar cliente / Crear nuevo"
-                    onChange={handleCustomerChange}
-                    value={
-                      selectedCustomer
-                        ? customers.find(c => c.id === selectedCustomer)?.name
-                        : undefined
-                    }
-                    options={[
-                      { value: '', label: 'Sin cliente' },
-                      { value: 'new', label: '+ Crear nuevo cliente' },
-                      ...customers.map(customer => ({
-                        value: String(customer.id),
-                        label: customer.name,
-                      })),
-                    ]}
-                    filterOption={(inputValue, option) =>
-                      option?.label
-                        ? option.label
-                            .toString()
-                            .toLowerCase()
-                            .indexOf(inputValue.toLowerCase()) !== -1
+                  />
+                </Col>
+                <Col flex="auto">
+                  <Text>Producto</Text>
+                  <Select
+                    placeholder="Seleccionar producto"
+                    onChange={handleProductSelect}
+                    value={selectedProduct}
+                    style={{ width: '100%' }}
+                    showSearch
+                    filterOption={(input, option) =>
+                      option?.children
+                        ? String(option.children).toLowerCase().includes(input.toLowerCase())
                         : false
                     }
-                  />
-                </div>
-              </Col>
-              <Col>
-                <Button icon={<ArrowLeftOutlined />} onClick={() => router.push('/sales')}>
-                  Volver
-                </Button>
-              </Col>
-            </Row>
+                  >
+                    {products
+                      .filter(product => product.stock > 0)
+                      .map(product => (
+                        <Option key={product.id} value={product.id}>
+                          {product.name} -{' '}
+                          {formatPriceWithExchange(calculateSellingPrice(product), exchangeRate)}{' '}
+                          (Stock: {product.stock})
+                        </Option>
+                      ))}
+                  </Select>
+                </Col>
+                <Col flex="160px">
+                  <Text>Precio USD</Text>
+                  <div>
+                    <InputNumber
+                      style={{ width: '100%' }}
+                      min={0.01}
+                      step={0.01}
+                      precision={2}
+                      value={selectedProductPrice}
+                      onChange={value => setSelectedProductPrice(value || 0)}
+                      prefix="U$"
+                    />
+                  </div>
+                </Col>
+                <Col flex="140px">
+                  <Text>Precio ARS</Text>
+                  <div>
+                    <Text>
+                      {(() => {
+                        if (!selectedProductPrice || !exchangeRate) return 'AR$ 0.00';
+                        const formattedPrice = formatPriceWithExchange(
+                          selectedProductPrice,
+                          exchangeRate
+                        );
+                        return extractArsPrice(formattedPrice);
+                      })()}
+                    </Text>
+                  </div>
+                </Col>
+                <Col flex="120px">
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={handleAddItem}
+                    disabled={!selectedProduct || quantity <= 0}
+                    style={{ width: '100%', marginTop: 24 }}
+                  >
+                    Agregar
+                  </Button>
+                </Col>
+              </Row>
+            </Card>
+          </Col>
+        </Row>
 
-            {showNewCustomerForm && (
-              <div
-                style={{
-                  padding: 16,
-                  background: '#f5f5f5',
-                  borderRadius: 4,
-                  marginTop: 16,
-                }}
-              >
-                <Title level={5} style={{ marginBottom: 16 }}>
-                  Nuevo Cliente
-                </Title>
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} md={12}>
-                    <div style={{ marginBottom: 12 }}>
-                      <Text>Nombre *</Text>
-                      <Input
-                        placeholder="Nombre del cliente"
-                        value={newCustomerData?.name || ''}
-                        onChange={e => handleNewCustomerInputChange('name', e.target.value)}
-                      />
-                    </div>
-                  </Col>
-                  <Col xs={24} md={12}>
-                    <div style={{ marginBottom: 12 }}>
-                      <Text>WhatsApp</Text>
-                      <Input
-                        placeholder="Número de WhatsApp"
-                        value={newCustomerData?.whatsapp || ''}
-                        onChange={e => handleNewCustomerInputChange('whatsapp', e.target.value)}
-                        prefix={<WhatsAppOutlined />}
-                      />
-                    </div>
-                  </Col>
-                  <Col xs={24} md={12}>
-                    <div style={{ marginBottom: 12 }}>
-                      <Text>Instagram</Text>
-                      <Input
-                        placeholder="Usuario de Instagram"
-                        value={newCustomerData?.instagram || ''}
-                        onChange={e => handleNewCustomerInputChange('instagram', e.target.value)}
-                        prefix={<InstagramOutlined />}
-                      />
-                    </div>
-                  </Col>
-                  <Col xs={24} md={12}>
-                    <div style={{ marginBottom: 12 }}>
-                      <Text>Facebook</Text>
-                      <Input
-                        placeholder="Usuario o URL de Facebook"
-                        value={newCustomerData?.facebook || ''}
-                        onChange={e => handleNewCustomerInputChange('facebook', e.target.value)}
-                        prefix={<FacebookOutlined />}
-                      />
-                    </div>
-                  </Col>
-                </Row>
-              </div>
-            )}
-          </Card>
-
-          <Card title="Agregar Productos" style={{ marginBottom: 16 }}>
-            <Row gutter={16} align="middle">
-              <Col flex="100px">
-                <Text>Cantidad</Text>
-                <InputNumber
-                  min={1}
-                  value={quantity}
-                  onChange={value => setQuantity(value || 1)}
-                  style={{ width: '100%' }}
+        <Row gutter={[16, 16]}>
+          <Col xs={24} lg={16} style={{ marginBottom: 16 }}>
+            <Card title="Productos en la venta" style={{ height: '100%' }}>
+              {saleItems.length === 0 ? (
+                <Empty description="No hay productos agregados" />
+              ) : (
+                <Table
+                  dataSource={saleItems}
+                  columns={columns}
+                  pagination={false}
+                  rowKey={(record: NewSaleItem) => `${record.product_id}`}
+                  bordered
                 />
-              </Col>
-              <Col flex="auto">
-                <Text>Producto</Text>
-                <Select
-                  placeholder="Seleccionar producto"
-                  onChange={handleProductSelect}
-                  value={selectedProduct}
-                  style={{ width: '100%' }}
-                  showSearch
-                  filterOption={(input, option) =>
-                    option?.children
-                      ? String(option.children).toLowerCase().includes(input.toLowerCase())
-                      : false
-                  }
+              )}
+            </Card>
+          </Col>
+
+          <Col xs={24} lg={8} style={{ marginBottom: 16 }}>
+            <Card title="Resumen de Venta" style={{ height: '100%' }}>
+              <div className="mb-4">
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    marginBottom: 8,
+                  }}
                 >
-                  {products
-                    .filter(product => product.stock > 0)
-                    .map(product => (
-                      <Option key={product.id} value={product.id}>
-                        {product.name} -{' '}
-                        {formatPriceWithExchange(calculateSellingPrice(product), exchangeRate)}{' '}
-                        (Stock: {product.stock})
-                      </Option>
-                    ))}
-                </Select>
-              </Col>
-              <Col flex="160px">
-                <Text>Precio USD</Text>
-                <div>
-                  <InputNumber
-                    style={{ width: '100%' }}
-                    min={0.01}
-                    step={0.01}
-                    precision={2}
-                    value={selectedProductPrice}
-                    onChange={value => setSelectedProductPrice(value || 0)}
-                    prefix="U$"
-                  />
+                  <Text>Productos:</Text>
+                  <Text>{saleItems.length}</Text>
                 </div>
-              </Col>
-              <Col flex="140px">
-                <Text>Precio ARS</Text>
-                <div>
-                  <Text>
-                    {(() => {
-                      if (!selectedProductPrice || !exchangeRate) return 'AR$ 0.00';
-                      const formattedPrice = formatPriceWithExchange(
-                        selectedProductPrice,
-                        exchangeRate
-                      );
-                      return extractArsPrice(formattedPrice);
-                    })()}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    marginBottom: 8,
+                  }}
+                >
+                  <Text>Items totales:</Text>
+                  <Text>{saleItems.reduce((acc, item) => acc + item.quantity, 0)}</Text>
+                </div>
+
+                <div style={{ marginTop: 16, marginBottom: 16 }}>
+                  <Text strong>Medio de Pago:</Text>
+                  <Radio.Group
+                    value={paymentMethod}
+                    onChange={e => setPaymentMethod(e.target.value)}
+                    style={{ display: 'flex', marginTop: 8 }}
+                  >
+                    <Radio value="efectivo">Efectivo</Radio>
+                    <Radio value="transferencia">Transferencia</Radio>
+                  </Radio.Group>
+                </div>
+
+                <Divider style={{ margin: '16px 0' }} />
+
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    marginBottom: 8,
+                  }}
+                >
+                  <Text strong>Total USD:</Text>
+                  <Text strong>{formatUsdPrice(calculateTotal())}</Text>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Text strong>Total ARS:</Text>
+                  <Text strong style={{ color: '#52c41a', fontSize: 18 }}>
+                    {extractArsPrice(formatPriceWithExchange(calculateTotal(), exchangeRate))}
                   </Text>
                 </div>
-              </Col>
-              <Col flex="120px">
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={handleAddItem}
-                  disabled={!selectedProduct || quantity <= 0}
-                  style={{ width: '100%', marginTop: 24 }}
-                >
-                  Agregar
-                </Button>
-              </Col>
-            </Row>
-          </Card>
-        </Col>
-      </Row>
+              </div>
 
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={16} style={{ marginBottom: 16 }}>
-          <Card title="Productos en la venta" style={{ height: '100%' }}>
-            {saleItems.length === 0 ? (
-              <Empty description="No hay productos agregados" />
-            ) : (
-              <Table
-                dataSource={saleItems}
-                columns={columns}
-                pagination={false}
-                rowKey={(record: NewSaleItem) => `${record.product_id}`}
-                bordered
-              />
-            )}
-          </Card>
-        </Col>
-
-        <Col xs={24} lg={8} style={{ marginBottom: 16 }}>
-          <Card title="Resumen de Venta" style={{ height: '100%' }}>
-            <div className="mb-4">
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginBottom: 8,
-                }}
+              <Button
+                type="primary"
+                icon={<ShoppingCartOutlined />}
+                block
+                size="large"
+                onClick={handleCreateSale}
+                loading={isSaving}
+                disabled={saleItems.length === 0}
               >
-                <Text>Productos:</Text>
-                <Text>{saleItems.length}</Text>
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginBottom: 8,
-                }}
-              >
-                <Text>Items totales:</Text>
-                <Text>{saleItems.reduce((acc, item) => acc + item.quantity, 0)}</Text>
-              </div>
-
-              <div style={{ marginTop: 16, marginBottom: 16 }}>
-                <Text strong>Medio de Pago:</Text>
-                <Radio.Group
-                  value={paymentMethod}
-                  onChange={e => setPaymentMethod(e.target.value)}
-                  style={{ display: 'flex', marginTop: 8 }}
-                >
-                  <Radio value="efectivo">Efectivo</Radio>
-                  <Radio value="transferencia">Transferencia</Radio>
-                </Radio.Group>
-              </div>
-
-              <Divider style={{ margin: '16px 0' }} />
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginBottom: 8,
-                }}
-              >
-                <Text strong>Total USD:</Text>
-                <Text strong>{formatUsdPrice(calculateTotal())}</Text>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <Text strong>Total ARS:</Text>
-                <Text strong style={{ color: '#52c41a', fontSize: 18 }}>
-                  {extractArsPrice(formatPriceWithExchange(calculateTotal(), exchangeRate))}
-                </Text>
-              </div>
-            </div>
-
-            <Button
-              type="primary"
-              icon={<ShoppingCartOutlined />}
-              block
-              size="large"
-              onClick={handleCreateSale}
-              loading={isSaving}
-              disabled={saleItems.length === 0}
-            >
-              Finalizar Venta
-            </Button>
-          </Card>
-        </Col>
-      </Row>
-    </div>
+                Finalizar Venta
+              </Button>
+            </Card>
+          </Col>
+        </Row>
+      </div>
+    </App>
   );
 }
