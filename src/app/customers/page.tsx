@@ -30,7 +30,7 @@ import {
 import dayjs from 'dayjs';
 import { getErrorMessage } from '@/types/error-types';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { confirm } = Modal;
 
 type Customer = {
@@ -51,6 +51,23 @@ export default function CustomersPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null);
   const [form] = Form.useForm();
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detectar pantalla móvil
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    // Verificar inicialmente
+    checkMobile();
+
+    // Agregar listener para cambios de tamaño
+    window.addEventListener('resize', checkMobile);
+
+    // Limpiar al desmontar
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     fetchCustomers();
@@ -294,8 +311,66 @@ export default function CustomersPage() {
     },
   ];
 
+  // Componente para renderizar la lista de clientes en vista móvil
+  const renderMobileCustomersList = () => {
+    return (
+      <div style={{ maxHeight: '100%', overflowY: 'auto' }}>
+        {customers.map(customer => (
+          <div
+            key={customer.id}
+            style={{
+              padding: '12px 8px',
+              borderBottom: '1px solid #f0f0f0',
+              display: 'flex',
+              flexDirection: 'column',
+              position: 'relative',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                right: 8,
+                top: 12,
+              }}
+            >
+              <Space size="small">
+                <Button
+                  icon={<EditOutlined />}
+                  type="primary"
+                  onClick={() => showModal(true, customer)}
+                  size="small"
+                />
+                <Button
+                  icon={<DeleteOutlined />}
+                  danger
+                  onClick={() => showDeleteConfirm(customer.id)}
+                  size="small"
+                />
+              </Space>
+            </div>
+
+            <Text strong style={{ fontSize: '16px', marginRight: 80, marginBottom: 8 }}>
+              {customer.name}
+            </Text>
+
+            <div style={{ marginBottom: 8 }}>
+              <Text type="secondary" style={{ fontSize: '13px', marginRight: 8 }}>
+                ID: {customer.id}
+              </Text>
+              <Text type="secondary" style={{ fontSize: '13px' }}>
+                Primera compra: {formatDate(customer.first_purchase_date)}
+              </Text>
+            </div>
+
+            <div style={{ marginTop: 4 }}>{renderSocialMediaLinks(customer)}</div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
-    <div style={{ padding: 16 }}>
+    <div style={{ padding: isMobile ? 8 : 16 }}>
       <Card
         title={
           <Row justify="space-between" align="middle">
@@ -311,14 +386,21 @@ export default function CustomersPage() {
             </Col>
           </Row>
         }
+        styles={{ body: { padding: isMobile ? '8px 4px' : '24px' } }}
       >
-        <Table
-          columns={columns}
-          dataSource={customers}
-          rowKey="id"
-          loading={isLoading}
-          pagination={{ pageSize: 10 }}
-        />
+        {isMobile ? (
+          // Vista móvil - lista simplificada
+          renderMobileCustomersList()
+        ) : (
+          // Vista escritorio - tabla completa
+          <Table
+            columns={columns}
+            dataSource={customers}
+            rowKey="id"
+            loading={isLoading}
+            pagination={{ pageSize: 10 }}
+          />
+        )}
       </Card>
 
       {/* Modal para crear/editar cliente */}

@@ -75,10 +75,27 @@ export default function NewSalePage() {
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomerData, setNewCustomerData] = useState<NewCustomerData | null>(null);
   const [selectedProductPrice, setSelectedProductPrice] = useState<number | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   const router = useRouter();
   const { user } = useAuth();
   const { message } = App.useApp();
+
+  // Detectar pantalla móvil
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    // Verificar inicialmente
+    checkMobile();
+
+    // Agregar listener para cambios de tamaño
+    window.addEventListener('resize', checkMobile);
+
+    // Limpiar al desmontar
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Convertir las funciones fetch a useCallback
   const fetchProducts = useCallback(async () => {
@@ -550,10 +567,22 @@ export default function NewSalePage() {
 
   return (
     <App>
-      <div style={{ padding: 16, width: '100%', boxSizing: 'border-box' }}>
-        <Row gutter={[16, 16]}>
+      <div
+        style={{
+          padding: isMobile ? '8px 8px 60px 8px' : 16,
+          width: '100%',
+          boxSizing: 'border-box',
+          height: isMobile ? '100vh' : 'auto',
+          overflowY: isMobile ? 'auto' : 'visible',
+        }}
+      >
+        <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>
           <Col span={24}>
-            <Card title="Cliente" style={{ marginBottom: 16 }}>
+            <Card
+              title={isMobile ? null : 'Cliente'}
+              style={{ marginBottom: 8 }}
+              styles={{ body: { padding: isMobile ? '8px 8px' : '24px' } }}
+            >
               <Row gutter={16} justify="space-between" align="middle">
                 <Col flex="auto">
                   <div className="mb-4">
@@ -595,16 +624,16 @@ export default function NewSalePage() {
               {showNewCustomerForm && (
                 <div
                   style={{
-                    padding: 16,
+                    padding: isMobile ? 8 : 16,
                     background: '#f5f5f5',
                     borderRadius: 4,
                     marginTop: 16,
                   }}
                 >
-                  <Title level={5} style={{ marginBottom: 16 }}>
+                  <Title level={5} style={{ marginBottom: isMobile ? 8 : 16 }}>
                     Nuevo Cliente
                   </Title>
-                  <Row gutter={[16, 16]}>
+                  <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>
                     <Col xs={24} md={12}>
                       <div style={{ marginBottom: 12 }}>
                         <Text>Nombre *</Text>
@@ -653,106 +682,282 @@ export default function NewSalePage() {
               )}
             </Card>
 
-            <Card title="Agregar Productos" style={{ marginBottom: 16 }}>
-              <Row gutter={16} align="middle">
-                <Col flex="100px">
-                  <Text>Cantidad</Text>
-                  <InputNumber
-                    min={1}
-                    value={quantity}
-                    onChange={value => setQuantity(value || 1)}
-                    style={{ width: '100%' }}
-                  />
-                </Col>
-                <Col flex="auto">
-                  <Text>Producto</Text>
-                  <Select
-                    placeholder="Seleccionar producto"
-                    onChange={handleProductSelect}
-                    value={selectedProduct}
-                    style={{ width: '100%' }}
-                    showSearch
-                    filterOption={(input, option) =>
-                      option?.children
-                        ? String(option.children).toLowerCase().includes(input.toLowerCase())
-                        : false
-                    }
-                  >
-                    {products
-                      .filter(product => product.stock > 0)
-                      .map(product => (
-                        <Option key={product.id} value={product.id}>
-                          {product.name} -{' '}
-                          {formatPriceWithExchange(calculateSellingPrice(product), exchangeRate)}{' '}
-                          (Stock: {product.stock})
-                        </Option>
-                      ))}
-                  </Select>
-                </Col>
-                <Col flex="160px">
-                  <Text>Precio USD</Text>
-                  <div>
+            <Card
+              title="Agregar Productos"
+              style={{ marginBottom: isMobile ? 8 : 16 }}
+              styles={{ body: { padding: isMobile ? '8px 8px' : '24px' } }}
+            >
+              {isMobile ? (
+                // Versión móvil más compacta
+                <>
+                  <Row gutter={[8, 8]} align="middle">
+                    <Col span={8}>
+                      <Text>Cantidad</Text>
+                      <InputNumber
+                        min={1}
+                        value={quantity}
+                        onChange={value => setQuantity(value || 1)}
+                        style={{ width: '100%' }}
+                      />
+                    </Col>
+                    <Col span={16}>
+                      <Text>Precio USD</Text>
+                      <InputNumber
+                        style={{ width: '100%' }}
+                        min={0.01}
+                        step={0.01}
+                        precision={2}
+                        value={selectedProductPrice}
+                        onChange={value => setSelectedProductPrice(value || 0)}
+                        prefix="U$"
+                      />
+                    </Col>
+                  </Row>
+
+                  <Row style={{ marginTop: 8 }}>
+                    <Col span={24}>
+                      <Text>Producto</Text>
+                      <Select
+                        placeholder="Seleccionar producto"
+                        onChange={handleProductSelect}
+                        value={selectedProduct}
+                        style={{ width: '100%' }}
+                        showSearch
+                        filterOption={(input, option) =>
+                          option?.children
+                            ? String(option.children).toLowerCase().includes(input.toLowerCase())
+                            : false
+                        }
+                      >
+                        {products
+                          .filter(product => product.stock > 0)
+                          .map(product => (
+                            <Option key={product.id} value={product.id}>
+                              {product.name} -{' '}
+                              {formatPriceWithExchange(
+                                calculateSellingPrice(product),
+                                exchangeRate
+                              )}{' '}
+                              (Stock: {product.stock})
+                            </Option>
+                          ))}
+                      </Select>
+                    </Col>
+                  </Row>
+
+                  <Row style={{ marginTop: 8 }} gutter={[8, 0]}>
+                    <Col span={12}>
+                      <Text>Precio ARS</Text>
+                      <div>
+                        <Text>
+                          {(() => {
+                            if (!selectedProductPrice || !exchangeRate) return 'AR$ 0.00';
+                            const formattedPrice = formatPriceWithExchange(
+                              selectedProductPrice,
+                              exchangeRate
+                            );
+                            return extractArsPrice(formattedPrice);
+                          })()}
+                        </Text>
+                      </div>
+                    </Col>
+                    <Col span={12} style={{ textAlign: 'right' }}>
+                      <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={handleAddItem}
+                        disabled={!selectedProduct || quantity <= 0}
+                        style={{ marginTop: 24 }}
+                      >
+                        Agregar
+                      </Button>
+                    </Col>
+                  </Row>
+                </>
+              ) : (
+                // Versión escritorio original
+                <Row gutter={isMobile ? 8 : 16} align="middle">
+                  <Col flex="100px">
+                    <Text>Cantidad</Text>
                     <InputNumber
+                      min={1}
+                      value={quantity}
+                      onChange={value => setQuantity(value || 1)}
                       style={{ width: '100%' }}
-                      min={0.01}
-                      step={0.01}
-                      precision={2}
-                      value={selectedProductPrice}
-                      onChange={value => setSelectedProductPrice(value || 0)}
-                      prefix="U$"
                     />
-                  </div>
-                </Col>
-                <Col flex="140px">
-                  <Text>Precio ARS</Text>
-                  <div>
-                    <Text>
-                      {(() => {
-                        if (!selectedProductPrice || !exchangeRate) return 'AR$ 0.00';
-                        const formattedPrice = formatPriceWithExchange(
-                          selectedProductPrice,
-                          exchangeRate
-                        );
-                        return extractArsPrice(formattedPrice);
-                      })()}
-                    </Text>
-                  </div>
-                </Col>
-                <Col flex="120px">
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={handleAddItem}
-                    disabled={!selectedProduct || quantity <= 0}
-                    style={{ width: '100%', marginTop: 24 }}
-                  >
-                    Agregar
-                  </Button>
-                </Col>
-              </Row>
+                  </Col>
+                  <Col flex="auto">
+                    <Text>Producto</Text>
+                    <Select
+                      placeholder="Seleccionar producto"
+                      onChange={handleProductSelect}
+                      value={selectedProduct}
+                      style={{ width: '100%' }}
+                      showSearch
+                      filterOption={(input, option) =>
+                        option?.children
+                          ? String(option.children).toLowerCase().includes(input.toLowerCase())
+                          : false
+                      }
+                    >
+                      {products
+                        .filter(product => product.stock > 0)
+                        .map(product => (
+                          <Option key={product.id} value={product.id}>
+                            {product.name} -{' '}
+                            {formatPriceWithExchange(calculateSellingPrice(product), exchangeRate)}{' '}
+                            (Stock: {product.stock})
+                          </Option>
+                        ))}
+                    </Select>
+                  </Col>
+                  <Col flex="160px">
+                    <Text>Precio USD</Text>
+                    <div>
+                      <InputNumber
+                        style={{ width: '100%' }}
+                        min={0.01}
+                        step={0.01}
+                        precision={2}
+                        value={selectedProductPrice}
+                        onChange={value => setSelectedProductPrice(value || 0)}
+                        prefix="U$"
+                      />
+                    </div>
+                  </Col>
+                  <Col flex="140px">
+                    <Text>Precio ARS</Text>
+                    <div>
+                      <Text>
+                        {(() => {
+                          if (!selectedProductPrice || !exchangeRate) return 'AR$ 0.00';
+                          const formattedPrice = formatPriceWithExchange(
+                            selectedProductPrice,
+                            exchangeRate
+                          );
+                          return extractArsPrice(formattedPrice);
+                        })()}
+                      </Text>
+                    </div>
+                  </Col>
+                  <Col flex="120px">
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      onClick={handleAddItem}
+                      disabled={!selectedProduct || quantity <= 0}
+                      style={{ width: '100%', marginTop: 24 }}
+                    >
+                      Agregar
+                    </Button>
+                  </Col>
+                </Row>
+              )}
             </Card>
           </Col>
         </Row>
 
-        <Row gutter={[16, 16]}>
-          <Col xs={24} lg={16} style={{ marginBottom: 16 }}>
-            <Card title="Productos en la venta" style={{ height: '100%' }}>
+        <Row gutter={[isMobile ? 8 : 16, isMobile ? 0 : 16]}>
+          <Col xs={24} lg={16} style={{ marginBottom: isMobile ? 8 : 16 }}>
+            <Card
+              title="Productos en la venta"
+              style={{ height: '100%' }}
+              styles={{ body: { padding: isMobile ? '8px 4px' : '24px' } }}
+            >
               {saleItems.length === 0 ? (
                 <Empty description="No hay productos agregados" />
+              ) : isMobile ? (
+                // Vista de lista simplificada para móvil
+                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  {saleItems.map((item, index) => (
+                    <div
+                      key={`${item.product_id}`}
+                      style={{
+                        padding: '8px 4px',
+                        borderBottom: '1px solid #f0f0f0',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        position: 'relative',
+                      }}
+                    >
+                      <div
+                        style={{
+                          position: 'absolute',
+                          right: 0,
+                          top: 8,
+                        }}
+                      >
+                        <Button
+                          icon={<DeleteOutlined />}
+                          danger
+                          onClick={() => handleRemoveItem(index)}
+                          size="small"
+                        />
+                      </div>
+
+                      <Text strong style={{ fontSize: '15px', marginRight: 30 }}>
+                        {item.product.name}
+                      </Text>
+
+                      <div
+                        style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <Text type="secondary">Cantidad: </Text>
+                          <InputNumber
+                            min={1}
+                            value={item.quantity}
+                            onChange={value => handleQuantityChange(index, value || 1)}
+                            style={{ width: 60, marginLeft: 4 }}
+                            size="small"
+                          />
+                        </div>
+                        <Text>
+                          {formatUsdPrice(item.selling_price)} /{' '}
+                          {extractArsPrice(
+                            formatPriceWithExchange(item.selling_price, exchangeRate)
+                          )}
+                        </Text>
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'flex-end',
+                          marginTop: 4,
+                        }}
+                      >
+                        <Text strong style={{ fontSize: '15px' }}>
+                          {formatPriceWithExchange(
+                            item.selling_price * item.quantity,
+                            exchangeRate
+                          )}
+                        </Text>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : (
+                // Tabla para escritorio
                 <Table
                   dataSource={saleItems}
                   columns={columns}
                   pagination={false}
                   rowKey={(record: NewSaleItem) => `${record.product_id}`}
                   bordered
+                  scroll={{ x: isMobile ? 700 : undefined }}
+                  size={isMobile ? 'small' : 'middle'}
                 />
               )}
             </Card>
           </Col>
 
-          <Col xs={24} lg={8} style={{ marginBottom: 16 }}>
-            <Card title="Resumen de Venta" style={{ height: '100%' }}>
+          <Col xs={24} lg={8} style={{ marginBottom: isMobile ? 8 : 16 }}>
+            <Card
+              title="Resumen de Venta"
+              style={{ height: '100%' }}
+              styles={{ body: { padding: isMobile ? '8px 8px' : '24px' } }}
+            >
               <div className="mb-4">
                 <div
                   style={{
@@ -775,7 +980,7 @@ export default function NewSalePage() {
                   <Text>{saleItems.reduce((acc, item) => acc + item.quantity, 0)}</Text>
                 </div>
 
-                <div style={{ marginTop: 16, marginBottom: 16 }}>
+                <div style={{ marginTop: isMobile ? 8 : 16, marginBottom: isMobile ? 8 : 16 }}>
                   <Text strong>Medio de Pago:</Text>
                   <Radio.Group
                     value={paymentMethod}
@@ -787,7 +992,7 @@ export default function NewSalePage() {
                   </Radio.Group>
                 </div>
 
-                <Divider style={{ margin: '16px 0' }} />
+                <Divider style={{ margin: isMobile ? '8px 0' : '16px 0' }} />
 
                 <div
                   style={{

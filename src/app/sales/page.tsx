@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Button,
   Table,
@@ -8,13 +8,15 @@ import {
   Typography,
   Tag,
   Space,
-  message,
   Modal,
   Descriptions,
   Row,
   Col,
   Tooltip,
   App,
+  List,
+  Grid,
+  Pagination,
 } from 'antd';
 import { StyleProvider } from '@ant-design/cssinjs';
 import type { ColumnsType } from 'antd/es/table';
@@ -42,6 +44,7 @@ import {
 } from '../../utils/priceUtils';
 
 const { Title, Text } = Typography;
+const { useBreakpoint } = Grid;
 
 export default function SalesPage() {
   const [sales, setSales] = useState<Sale[]>([]);
@@ -52,6 +55,10 @@ export default function SalesPage() {
 
   // Obtenemos la API de modal desde el hook useApp
   const { modal, message } = App.useApp();
+
+  // Detectar tamaño de pantalla
+  const screens = useBreakpoint();
+  const isMobile = !screens.md;
 
   // Estado para el ordenamiento
   const [tableParams, setTableParams] = useState<{
@@ -69,6 +76,9 @@ export default function SalesPage() {
     sortField: null,
     sortOrder: null,
   });
+
+  // Referencia para el contenedor de la lista
+  const listContainerRef = useRef<HTMLDivElement>(null);
 
   // Usar useCallback para la función fetchSales
   const fetchSaleData = useCallback(async () => {
@@ -187,46 +197,78 @@ export default function SalesPage() {
     });
   };
 
-  // Ordenar las ventas según el criterio seleccionado
+  // Función específica para manejar la paginación en vista móvil
+  const handleListPaginationChange = (page: number, pageSize?: number) => {
+    setTableParams({
+      ...tableParams,
+      pagination: {
+        current: page,
+        pageSize: pageSize || tableParams.pagination.pageSize,
+      },
+    });
+
+    // Resetear el scroll a la parte superior
+    if (listContainerRef.current) {
+      listContainerRef.current.scrollTop = 0;
+    }
+  };
+
+  // Ordenar las ventas según el criterio seleccionado y aplicar paginación
   const getSortedSales = () => {
-    if (!tableParams.sortField || !tableParams.sortOrder) {
-      return sales;
+    // Primero ordenamos todas las ventas
+    const result = [...sales];
+
+    // Aplicar ordenamiento si hay un criterio seleccionado
+    if (tableParams.sortField && tableParams.sortOrder) {
+      result.sort((a, b) => {
+        const sortOrder = tableParams.sortOrder === 'ascend' ? 1 : -1;
+
+        switch (tableParams.sortField) {
+          case 'created_at': {
+            const dateA = new Date(a.created_at);
+            const dateB = new Date(b.created_at);
+            return sortOrder * (dateA.getTime() - dateB.getTime());
+          }
+
+          case 'customer': {
+            const customerA = a.customer?.name || '';
+            const customerB = b.customer?.name || '';
+            return sortOrder * customerA.localeCompare(customerB);
+          }
+
+          case 'total': {
+            const aTotal = parseFloat(a.total.toString());
+            const bTotal = parseFloat(b.total.toString());
+            return sortOrder * (aTotal - bTotal);
+          }
+
+          case 'items': {
+            return sortOrder * (a.items.length - b.items.length);
+          }
+
+          case 'payment_method': {
+            return sortOrder * a.payment_method.localeCompare(b.payment_method);
+          }
+
+          default:
+            return 0;
+        }
+      });
     }
 
-    return [...sales].sort((a, b) => {
-      const sortOrder = tableParams.sortOrder === 'ascend' ? 1 : -1;
+    // En vista de tabla (desktop) retornamos todas las ventas ordenadas
+    // ya que la tabla tiene su propia paginación interna
+    if (!isMobile) {
+      return result;
+    }
 
-      switch (tableParams.sortField) {
-        case 'created_at': {
-          const dateA = new Date(a.created_at);
-          const dateB = new Date(b.created_at);
-          return sortOrder * (dateA.getTime() - dateB.getTime());
-        }
+    // En vista de lista (mobile) aplicamos la paginación manualmente
+    const { current, pageSize } = tableParams.pagination;
+    const startIndex = (current - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
 
-        case 'customer': {
-          const customerA = a.customer?.name || '';
-          const customerB = b.customer?.name || '';
-          return sortOrder * customerA.localeCompare(customerB);
-        }
-
-        case 'total': {
-          const aTotal = parseFloat(a.total.toString());
-          const bTotal = parseFloat(b.total.toString());
-          return sortOrder * (aTotal - bTotal);
-        }
-
-        case 'items': {
-          return sortOrder * (a.items.length - b.items.length);
-        }
-
-        case 'payment_method': {
-          return sortOrder * a.payment_method.localeCompare(b.payment_method);
-        }
-
-        default:
-          return 0;
-      }
-    });
+    // Retornamos solo la porción correspondiente a la página actual
+    return result.slice(startIndex, endIndex);
   };
 
   const columns: ColumnsType<Sale> = [
@@ -298,6 +340,74 @@ export default function SalesPage() {
     },
   ];
 
+  const renderListItem = (sale: Sale) => {
+    return (
+      <List.Item key={sale.id} style={{ padding: '12px 8px', borderBottom: '1px solid #f0f0f0' }}>
+        <Row align="middle" style={{ width: '100%' }}>
+          {/* Contenido principal (75-80% del ancho) */}
+          <Col xs={20} sm={19}>
+            <div style={{ width: '100%' }}>
+              {/* Fecha y cliente */}
+              <div style={{ marginBottom: 8 }}>
+                <Text strong style={{ fontSize: '15px' }}>
+                  {formatDate(sale.created_at)}
+                </Text>
+                <div style={{ marginTop: 4 }}>
+                  {sale.customer ? (
+                    <Text>{sale.customer.name}</Text>
+                  ) : (
+                    <Text type="secondary">Cliente no registrado</Text>
+                  )}
+                </div>
+              </div>
+
+              {/* Info de pago y productos */}
+              <Row style={{ marginBottom: 8 }}>
+                <Col span={12}>
+                  <Space>
+                    <Text type="secondary">Pago:</Text>
+                    {renderPaymentMethod(sale.payment_method)}
+                  </Space>
+                </Col>
+                <Col span={12}>
+                  <Space>
+                    <Text type="secondary">Productos:</Text>
+                    <Text>{sale.items.length}</Text>
+                  </Space>
+                </Col>
+              </Row>
+
+              {/* Precio total */}
+              <div>
+                <Text strong style={{ fontSize: '15px' }}>
+                  {sale.total_ars
+                    ? formatDualPrice(sale.total, sale.total_ars)
+                    : formatPriceWithExchange(sale.total, sale.exchange_rate)}
+                </Text>
+              </div>
+            </div>
+          </Col>
+
+          {/* Botones de acción vertical a la derecha (20-25% del ancho) */}
+          <Col xs={4} sm={5} style={{ textAlign: 'right' }}>
+            <Space direction="vertical" size="small">
+              <Button icon={<EyeOutlined />} onClick={() => showDetails(sale)} size="small" />
+              <Link href={`/sales/edit/${sale.id}`}>
+                <Button icon={<EditOutlined />} type="primary" size="small" />
+              </Link>
+              <Button
+                icon={<DeleteOutlined />}
+                danger
+                onClick={() => showDeleteConfirm(sale.id)}
+                size="small"
+              />
+            </Space>
+          </Col>
+        </Row>
+      </List.Item>
+    );
+  };
+
   return (
     <App>
       <StyleProvider hashPriority="high">
@@ -319,22 +429,74 @@ export default function SalesPage() {
                 </Col>
               </Row>
             }
+            bodyStyle={{ padding: isMobile ? '12px 8px' : '24px' }}
+            style={{ maxHeight: isMobile ? 'calc(100vh - 100px)' : 'auto' }}
           >
-            <div style={{ position: 'relative', minHeight: '200px' }}>
-              <Table
-                columns={columns}
-                dataSource={getSortedSales()}
-                rowKey="id"
-                onChange={handleTableChange}
-                loading={isLoading}
-                pagination={{
-                  ...tableParams.pagination,
-                  showSizeChanger: true,
-                  pageSizeOptions: ['10', '20', '50', '100'],
-                  showTotal: total => `Total ${total} ventas`,
-                }}
-              />
-            </div>
+            {isMobile ? (
+              // Vista de lista para móviles con paginación fija
+              <div style={{ position: 'relative', height: 'calc(100vh - 180px)' }}>
+                {/* Contenedor de la lista con scroll */}
+                <div
+                  ref={listContainerRef}
+                  style={{
+                    height: 'calc(100vh - 240px)',
+                    overflowY: 'auto',
+                    paddingBottom: '10px',
+                  }}
+                >
+                  <List
+                    dataSource={getSortedSales()}
+                    renderItem={renderListItem}
+                    loading={isLoading}
+                    style={{ background: '#fff' }}
+                    pagination={false} // Quitamos paginación del List
+                  />
+                </div>
+
+                {/* Paginación fija en la parte inferior */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    padding: '10px 0',
+                    background: '#fff',
+                    borderTop: '1px solid #f0f0f0',
+                    textAlign: 'center',
+                    zIndex: 10,
+                  }}
+                >
+                  <Pagination
+                    {...tableParams.pagination}
+                    showSizeChanger={true}
+                    pageSizeOptions={['10', '20', '50']}
+                    size="small"
+                    showTotal={(total: number) => `Total ${total} ventas`}
+                    onChange={handleListPaginationChange}
+                    onShowSizeChange={handleListPaginationChange}
+                    total={sales.length}
+                  />
+                </div>
+              </div>
+            ) : (
+              // Vista de tabla para pantallas más grandes
+              <div style={{ position: 'relative', overflow: 'hidden' }}>
+                <Table
+                  columns={columns}
+                  dataSource={getSortedSales()}
+                  rowKey="id"
+                  onChange={handleTableChange}
+                  loading={isLoading}
+                  pagination={{
+                    ...tableParams.pagination,
+                    showSizeChanger: true,
+                    pageSizeOptions: ['10', '20', '50', '100'],
+                    showTotal: total => `Total ${total} ventas`,
+                  }}
+                />
+              </div>
+            )}
           </Card>
 
           {/* Modal para ver detalles de la venta */}

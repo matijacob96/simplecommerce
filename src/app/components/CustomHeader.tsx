@@ -79,7 +79,7 @@ export function CustomHeader() {
       setIsMobile(window.innerWidth < 992);
     };
     checkIsMobile();
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, drawerVisible]);
 
   // Función para mostrar/ocultar el drawer
   const toggleDrawer = () => {
