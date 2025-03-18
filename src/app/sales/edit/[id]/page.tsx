@@ -651,17 +651,15 @@ export default function EditSalePage() {
   return (
     <div
       style={{
-        padding: '8px 8px 8px 8px',
+        padding: '0px 8px 8px 8px',
         width: '100%',
         boxSizing: 'border-box',
-        height: isMobile ? '100vh' : 'auto',
+        height: isMobile ? 'calc(100vh - 56px)' : 'auto',
         overflow: 'auto',
         WebkitOverflowScrolling: 'touch',
-        position: 'absolute',
-        top: 0,
-        bottom: 0,
-        left: 0,
-        right: 0,
+        position: 'relative',
+        background: 'transparent',
+        maxHeight: isMobile ? 'calc(100vh - 56px)' : 'none',
       }}
     >
       <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>
