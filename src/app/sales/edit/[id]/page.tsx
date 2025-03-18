@@ -654,10 +654,14 @@ export default function EditSalePage() {
         padding: '8px 8px 8px 8px',
         width: '100%',
         boxSizing: 'border-box',
-        height: isMobile ? 'auto' : 'auto',
-        overflowY: 'auto',
+        height: isMobile ? '100vh' : 'auto',
+        overflow: 'auto',
         WebkitOverflowScrolling: 'touch',
-        paddingBottom: isMobile ? '16px' : '16px',
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
       }}
     >
       <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>
@@ -1108,12 +1112,13 @@ export default function EditSalePage() {
               onClick={handleUpdateSale}
               loading={isSaving}
               disabled={saleItems.length === 0}
+              style={isMobile ? { marginBottom: 120 } : undefined}
             >
               Actualizar Venta
             </Button>
 
-            {/* Espacio adicional después del botón en móviles */}
-            {isMobile && <div style={{ height: 120 }}></div>}
+            {/* Espacio adicional al final para asegurar scroll en móviles */}
+            {isMobile && <div style={{ height: 200 }}></div>}
           </Card>
         </Col>
       </Row>
