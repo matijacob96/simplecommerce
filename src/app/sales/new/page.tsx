@@ -1032,6 +1032,9 @@ export default function NewSalePage() {
               >
                 Finalizar Venta
               </Button>
+
+              {/* Espacio adicional después del botón en móviles */}
+              {isMobile && <div style={{ height: 120 }}></div>}
             </Card>
           </Col>
         </Row>

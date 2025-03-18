@@ -1111,6 +1111,9 @@ export default function EditSalePage() {
             >
               Actualizar Venta
             </Button>
+
+            {/* Espacio adicional después del botón en móviles */}
+            {isMobile && <div style={{ height: 120 }}></div>}
           </Card>
         </Col>
       </Row>
