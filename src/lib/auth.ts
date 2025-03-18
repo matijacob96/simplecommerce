@@ -118,58 +118,97 @@ export function isTokenExpiringSoon(): boolean {
 }
 
 // Función para refrescar el token
-export async function refreshToken(): Promise<boolean> {
-  try {
-    // Verificar si hay un token almacenado antes de intentar refrescar
-    const storedToken = getStoredToken();
-    if (!storedToken) {
-      console.log('[Auth] No hay token almacenado, no se intentará refrescar');
-      return false;
-    }
+export async function refreshToken(maxRetries = 2): Promise<boolean> {
+  let retryCount = 0;
 
-    console.log('[Auth] Intentando refrescar token...');
-    const { data, error } = await supabase.auth.refreshSession();
+  const attemptRefresh = async (): Promise<boolean> => {
+    try {
+      // Verificar si hay un token almacenado antes de intentar refrescar
+      const storedToken = getStoredToken();
+      if (!storedToken) {
+        console.log('[Auth] No hay token almacenado, no se intentará refrescar');
+        return false;
+      }
 
-    if (error) {
-      // Manejar específicamente el error de sesión faltante
-      if (error.message.includes('Auth session missing')) {
-        console.error('[Auth] Error: Sesión de autenticación faltante', error);
+      console.log(`[Auth] Intentando refrescar token (intento ${retryCount + 1})...`);
+      const { data, error } = await supabase.auth.refreshSession();
+
+      if (error) {
+        // Manejar específicamente el error de sesión faltante
+        if (error.message.includes('Auth session missing')) {
+          console.error('[Auth] Error: Sesión de autenticación faltante', error);
+          clearAuthData();
+          return false;
+        }
+
+        // Otros errores
+        console.error('[Auth] Error al refrescar token:', error);
+
+        // Si aún tenemos reintentos disponibles, esperar y reintentar
+        if (retryCount < maxRetries) {
+          retryCount++;
+          // Esperar un tiempo antes de reintentar (500ms, 1000ms, etc.)
+          await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
+          return attemptRefresh();
+        }
+
         clearAuthData();
         return false;
       }
 
-      // Otros errores
-      console.error('[Auth] Error al refrescar token:', error);
+      if (!data.session) {
+        console.error('[Auth] Error: No se obtuvo una sesión nueva');
+
+        // Reintentar si es posible
+        if (retryCount < maxRetries) {
+          retryCount++;
+          await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
+          return attemptRefresh();
+        }
+
+        clearAuthData();
+        return false;
+      }
+
+      // Actualizar token en localStorage
+      const user = await getUserFromSession(data.session);
+      if (user) {
+        console.log('[Auth] Token refrescado correctamente');
+        saveAuthData(
+          data.session.access_token,
+          data.session.refresh_token,
+          data.session.expires_in || 3600,
+          user
+        );
+        return true;
+      }
+
+      console.error('[Auth] Error: No se pudo obtener información del usuario');
+
+      // Reintentar obtener usuario si es posible
+      if (retryCount < maxRetries) {
+        retryCount++;
+        await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
+        return attemptRefresh();
+      }
+
+      return false;
+    } catch (err) {
+      console.error('[Auth] Error inesperado al refrescar token:', err);
+
+      // Reintentar en caso de error inesperado
+      if (retryCount < maxRetries) {
+        retryCount++;
+        await new Promise(resolve => setTimeout(resolve, 500 * retryCount));
+        return attemptRefresh();
+      }
+
       clearAuthData();
       return false;
     }
+  };
 
-    if (!data.session) {
-      console.error('[Auth] Error: No se obtuvo una sesión nueva');
-      clearAuthData();
-      return false;
-    }
-
-    // Actualizar token en localStorage
-    const user = await getUserFromSession(data.session);
-    if (user) {
-      console.log('[Auth] Token refrescado correctamente');
-      saveAuthData(
-        data.session.access_token,
-        data.session.refresh_token,
-        data.session.expires_in || 3600,
-        user
-      );
-      return true;
-    }
-
-    console.error('[Auth] Error: No se pudo obtener información del usuario');
-    return false;
-  } catch (err) {
-    console.error('[Auth] Error inesperado al refrescar token:', err);
-    clearAuthData();
-    return false;
-  }
+  return attemptRefresh();
 }
 
 // Función auxiliar para obtener usuario a partir de sesión
@@ -320,7 +359,7 @@ export async function getCurrentUser(): Promise<User | null> {
         setTimeout(() => {
           console.error('[Auth] Timeout al refrescar token');
           resolve(false);
-        }, 5000); // 5 segundos de timeout
+        }, 8000); // 8 segundos de timeout (aumentado para dar más tiempo)
       });
 
       // Esperar a que se complete la primera promesa (refresco o timeout)
@@ -351,7 +390,7 @@ export async function getCurrentUser(): Promise<User | null> {
       setTimeout(() => {
         console.error('[Auth] Timeout al obtener sesión');
         resolve({ data: { session: null } });
-      }, 5000); // 5 segundos de timeout
+      }, 8000); // 8 segundos de timeout (aumentado)
     });
 
     // Esperar la primera promesa que se complete
@@ -422,17 +461,53 @@ export async function getCurrentUser(): Promise<User | null> {
       return null;
     }
 
-    console.log('[Auth] Sesión obtenida, recuperando información de usuario');
-    // Obtener usuario desde la sesión
-    const user = await getUserFromSession(session);
-    if (user) {
-      console.log('[Auth] Usuario recuperado correctamente');
-      // Actualizar almacenamiento local con los datos nuevos
-      saveAuthData(session.access_token, session.refresh_token, session.expires_in || 3600, user);
-      return user;
+    // Intentar hasta 2 veces obtener la información del usuario
+    let retries = 0;
+    const maxRetries = 2;
+    let user = null;
+
+    while (retries <= maxRetries && !user) {
+      try {
+        console.log(
+          `[Auth] Sesión obtenida, recuperando información de usuario (intento ${retries + 1})`
+        );
+        // Obtener usuario desde la sesión
+        user = await getUserFromSession(session);
+
+        if (user) {
+          console.log('[Auth] Usuario recuperado correctamente');
+          // Actualizar almacenamiento local con los datos nuevos
+          saveAuthData(
+            session.access_token,
+            session.refresh_token,
+            session.expires_in || 3600,
+            user
+          );
+          return user;
+        }
+
+        // Si no se pudo obtener usuario, esperar antes de reintentar
+        if (retries < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 500 * (retries + 1)));
+        }
+
+        retries++;
+      } catch (err) {
+        console.error(`[Auth] Error al recuperar usuario (intento ${retries + 1}):`, err);
+
+        if (retries < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 500 * (retries + 1)));
+          retries++;
+        } else {
+          // Si agotamos los reintentos, limpiar datos y retornar null
+          clearAuthData();
+          return null;
+        }
+      }
     }
 
-    console.log('[Auth] No se pudo recuperar información del usuario');
+    console.log('[Auth] No se pudo recuperar información del usuario después de reintentos');
+    clearAuthData();
     return null;
   } catch (error: unknown) {
     // Si hay error al obtener la sesión, limpiar datos locales

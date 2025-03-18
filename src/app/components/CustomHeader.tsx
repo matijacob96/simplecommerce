@@ -16,6 +16,7 @@ import {
   LogoutOutlined,
   LoginOutlined,
   UserAddOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '@/lib/AuthContext';
 import { LoginModal } from './LoginModal';
@@ -41,6 +42,7 @@ const iconMap: Record<string, React.ReactNode> = {
   LogoutOutlined: <LogoutOutlined />,
   LoginOutlined: <LoginOutlined />,
   UserAddOutlined: <UserAddOutlined />,
+  BarChartOutlined: <BarChartOutlined />,
 };
 
 export function CustomHeader() {

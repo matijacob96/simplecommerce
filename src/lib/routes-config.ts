@@ -54,6 +54,13 @@ export const appRoutes: RouteConfig[] = [
     showInMenu: true,
   },
   {
+    path: '/stats',
+    label: 'Estadísticas',
+    icon: 'BarChartOutlined',
+    allowedRoles: ['admin'],
+    showInMenu: true,
+  },
+  {
     path: '/settings',
     label: 'Configuración',
     icon: 'SettingOutlined',

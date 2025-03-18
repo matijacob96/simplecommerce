@@ -429,7 +429,7 @@ export default function SalesPage() {
                 </Col>
               </Row>
             }
-            bodyStyle={{ padding: isMobile ? '12px 8px' : '24px' }}
+            styles={{ body: { padding: isMobile ? '12px 8px' : '24px' } }}
             style={{ maxHeight: isMobile ? 'calc(100vh - 100px)' : 'auto' }}
           >
             {isMobile ? (

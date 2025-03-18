@@ -13,6 +13,7 @@ import {
   getStoredToken,
 } from './auth';
 import supabase from './supabase';
+import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
   user: User | null;
@@ -34,20 +35,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState<Error | null>(null);
   const [initialized, setInitialized] = useState(false);
+  const [authInProgress, setAuthInProgress] = useState(false);
+  const router = useRouter();
 
-  // Función para cargar el usuario actual
-  const loadUser = async () => {
+  // Función para manejar error de autenticación y redirigir si es necesario
+  const handleAuthError = (error: unknown, redirectToHome = true) => {
+    console.error('Error de autenticación:', error);
+    setAuthError(error instanceof Error ? error : new Error(String(error)));
+    setUser(null);
+
+    // Limpiar datos de sesión en localStorage para evitar intentos de refresco fallidos
+    localStorage.removeItem('simplecommerce_auth_token');
+    localStorage.removeItem('simplecommerce_refresh_token');
+    localStorage.removeItem('simplecommerce_auth_expiry');
+    localStorage.removeItem('simplecommerce_auth_user');
+
+    // Redirigir a la página de inicio si se solicita
+    if (redirectToHome) {
+      // Pequeño retraso para asegurar que el estado se actualice antes de la redirección
+      setTimeout(() => {
+        router.push('/');
+      }, 100);
+    }
+  };
+
+  // Función para cargar el usuario actual con manejo mejorado de errores
+  const loadUser = async (redirectOnError = false) => {
     try {
+      if (authInProgress) return;
+      setAuthInProgress(true);
       setIsLoading(true);
       setAuthError(null);
+
       const currentUser = await getCurrentUser();
-      setUser(currentUser);
+
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        // Si no hay usuario pero teníamos uno antes, manejar como un error de autenticación
+        if (user) {
+          handleAuthError(new Error('La sesión ha expirado'), redirectOnError);
+        } else {
+          setUser(null);
+        }
+      }
     } catch (error: unknown) {
-      console.error('Error al cargar usuario:', error);
-      setAuthError(error instanceof Error ? error : new Error(String(error)));
-      setUser(null);
+      handleAuthError(error, redirectOnError);
     } finally {
       setIsLoading(false);
+      setAuthInProgress(false);
     }
   };
 
@@ -69,13 +105,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const existingUser = getStoredUser();
         const existingToken = getStoredToken();
 
-        if (existingUser && existingToken && isTokenExpiringSoon()) {
-          await refreshToken();
-        }
-
-        // Cargar el usuario desde el servidor (solo si tenemos token)
-        if (existingToken) {
-          await loadUser();
+        if (existingUser && existingToken) {
+          if (isTokenExpiringSoon()) {
+            try {
+              const success = await refreshToken();
+              if (!success) {
+                // Si falla el refresco, cargar usuario sin redirección
+                await loadUser(false);
+              } else {
+                // Si el refresco es exitoso, cargar usuario desde localStorage actualizado
+                const refreshedUser = getStoredUser();
+                if (refreshedUser) {
+                  setUser(refreshedUser);
+                  setIsLoading(false);
+                } else {
+                  await loadUser(false);
+                }
+              }
+            } catch (error) {
+              console.error('Error en refresco inicial:', error);
+              await loadUser(false);
+            }
+          } else {
+            // Cargar el usuario desde el servidor (solo si tenemos token)
+            await loadUser(false);
+          }
         } else {
           setIsLoading(false); // No hay token, no necesitamos cargar nada
         }
@@ -83,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       init();
     }
-  }, [initialized]);
+  }, [initialized, router]);
 
   // Suscripciones y manejadores de eventos - solo después de la inicialización del cliente
   useEffect(() => {
@@ -91,10 +145,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Suscribirse a cambios de autenticación
     const { data: authListener } = supabase.auth.onAuthStateChange(async event => {
+      console.log('[AuthContext] Evento de autenticación:', event);
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        await loadUser();
+        await loadUser(false);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
+        router.push('/');
+      } else if (event === 'USER_UPDATED') {
+        await loadUser(false);
       }
     });
 
@@ -109,25 +167,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (storedUser && storedToken) {
           // Si el token está por expirar, refrescarlo primero
           if (isTokenExpiringSoon()) {
-            refreshToken().then(success => {
-              if (success) {
-                loadUser();
-              } else {
-                // Si falla el refresco pero aún tenemos token, intentar cargar usuario
-                if (getStoredToken()) {
-                  loadUser();
+            refreshToken()
+              .then(success => {
+                if (success) {
+                  // Solo cargar usuario si el refresco fue exitoso
+                  const refreshedUser = getStoredUser();
+                  if (refreshedUser) {
+                    setUser(refreshedUser);
+                  }
                 } else {
-                  setUser(null);
-                  setIsLoading(false);
+                  // Si falla el refresco, intentar cargar usuario con redirección
+                  loadUser(true);
                 }
-              }
-            });
+              })
+              .catch(() => {
+                // En caso de error en refresco, cargar usuario con redirección
+                loadUser(true);
+              });
           } else {
-            loadUser();
+            // Token válido, actualizar el estado con el usuario almacenado
+            const currentStoredUser = getStoredUser();
+            if (currentStoredUser) {
+              setUser(currentStoredUser);
+            }
           }
-        } else {
-          // Si no hay usuario almacenado, solo establecer isLoading en false
-          setIsLoading(false);
         }
       }
     };
@@ -150,28 +213,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const success = await refreshToken();
               if (success) {
                 console.log('[AuthContext] Refresco proactivo exitoso');
+                // Actualizar usuario en el estado si el refresco fue exitoso
+                const refreshedUser = getStoredUser();
+                if (refreshedUser) {
+                  setUser(refreshedUser);
+                }
               } else {
                 console.warn(
                   '[AuthContext] Falló el refresco proactivo, se intentará cargar el usuario'
                 );
-                // Intentar cargar el usuario como medida de respaldo
-                await loadUser();
+                // Intentar cargar el usuario con redirección si falla el refresco
+                await loadUser(true);
               }
             } catch (error) {
               console.error('[AuthContext] Error en refresco programado:', error);
-
-              // Si hay error de refresco, intentar notificar al usuario y/o recargar
-              setAuthError(
-                error instanceof Error ? error : new Error('Error al mantener tu sesión activa')
-              );
+              // Si hay error en refresco, cargar usuario con redirección
+              await loadUser(true);
             }
-          } else {
-            console.log('[AuthContext] Token aún válido, no requiere refresco');
           }
         }
       },
-      2 * 60 * 1000
-    ); // Verificar cada 2 minutos, más frecuente que antes
+      // Verificar cada minuto, más frecuente que antes para prevenir problemas
+      60 * 1000
+    );
 
     return () => {
       // Limpiar suscripciones
@@ -181,11 +245,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(tokenRefreshInterval);
     };
-  }, [initialized]);
+  }, [initialized, router]);
 
   // Función para refrescar manualmente el usuario
   const refreshUser = async () => {
-    await loadUser();
+    await loadUser(true);
   };
 
   const login = async (email: string, password: string) => {
@@ -196,7 +260,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await signIn(email, password);
 
       // Cargar usuario inmediatamente después de iniciar sesión
-      await loadUser();
+      await loadUser(false);
     } catch (error: unknown) {
       setAuthError(error instanceof Error ? error : new Error(String(error)));
       throw error;
@@ -210,6 +274,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true);
       await signOut();
       setUser(null);
+      // Redirigir a home después de cerrar sesión
+      router.push('/');
     } catch (error: unknown) {
       setAuthError(error instanceof Error ? error : new Error(String(error)));
       throw error;
