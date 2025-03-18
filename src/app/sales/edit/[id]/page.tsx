@@ -651,11 +651,13 @@ export default function EditSalePage() {
   return (
     <div
       style={{
-        padding: isMobile ? '8px 8px 60px 8px' : 16,
+        padding: '8px 8px 8px 8px',
         width: '100%',
         boxSizing: 'border-box',
-        height: isMobile ? '100vh' : 'auto',
-        overflowY: isMobile ? 'auto' : 'visible',
+        height: isMobile ? 'auto' : 'auto',
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        paddingBottom: isMobile ? '16px' : '16px',
       }}
     >
       <Row gutter={[isMobile ? 8 : 16, isMobile ? 8 : 16]}>
@@ -953,7 +955,9 @@ export default function EditSalePage() {
               <Empty description="No hay productos agregados" />
             ) : isMobile ? (
               // Vista de lista simplificada para móvil
-              <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+              <div
+                style={{ maxHeight: '40vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}
+              >
                 {saleItems.map((item, index) => (
                   <div
                     key={`${item.product_id}`}
