@@ -9,7 +9,6 @@ import {
   Input,
   InputNumber,
   AutoComplete,
-  message,
   Space,
   Typography,
   Tooltip,
@@ -20,6 +19,7 @@ import {
   Image,
   Upload,
   Pagination,
+  App,
 } from 'antd';
 import {
   PlusOutlined,
@@ -72,6 +72,9 @@ type DolarBlue = {
 };
 
 export default function ProductsPage() {
+  // Obtenemos el contexto de la aplicación para los mensajes
+  const { message } = App.useApp();
+
   // Estado de montaje para evitar actualizaciones después del desmontaje
   const isMounted = useRef(true);
 

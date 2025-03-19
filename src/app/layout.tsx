@@ -5,7 +5,7 @@ import React, { Suspense } from 'react';
 import './globals.css';
 import 'antd/dist/reset.css';
 import { CustomHeader } from './components/CustomHeader';
-import { Layout, Spin, ConfigProvider } from 'antd';
+import { Layout, Spin, ConfigProvider, App } from 'antd';
 import { Content } from 'antd/es/layout/layout';
 import { AuthProvider } from '@/lib/AuthContext';
 import { RouteGuard } from './components/RouteGuard';
@@ -17,34 +17,36 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body suppressHydrationWarning={true}>
         <AntdRegistry>
           <ConfigProvider theme={{ cssVar: true }}>
-            <AuthProvider>
-              <AppStateProvider>
-                <Toaster>
-                  <Layout>
-                    <CustomHeader />
-                    <Content>
-                      <Suspense
-                        fallback={
-                          <div
-                            style={{
-                              padding: 20,
-                              height: 'calc(100vh - 64px)',
-                              display: 'flex',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                            }}
-                          >
-                            <Spin size="large" tip="Cargando aplicación..." fullscreen />
-                          </div>
-                        }
-                      >
-                        <RouteGuard>{children}</RouteGuard>
-                      </Suspense>
-                    </Content>
-                  </Layout>
-                </Toaster>
-              </AppStateProvider>
-            </AuthProvider>
+            <App>
+              <AuthProvider>
+                <AppStateProvider>
+                  <Toaster>
+                    <Layout>
+                      <CustomHeader />
+                      <Content>
+                        <Suspense
+                          fallback={
+                            <div
+                              style={{
+                                padding: 20,
+                                height: 'calc(100vh - 64px)',
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <Spin size="large" tip="Cargando aplicación..." fullscreen />
+                            </div>
+                          }
+                        >
+                          <RouteGuard>{children}</RouteGuard>
+                        </Suspense>
+                      </Content>
+                    </Layout>
+                  </Toaster>
+                </AppStateProvider>
+              </AuthProvider>
+            </App>
           </ConfigProvider>
         </AntdRegistry>
       </body>

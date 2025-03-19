@@ -11,7 +11,7 @@ import {
   Typography,
   Upload,
   Image,
-  message,
+  App,
 } from 'antd';
 import {
   DeleteOutlined,
@@ -27,6 +27,7 @@ import type { UploadFile } from 'antd/es/upload';
 import debounce from 'lodash/debounce';
 import './pedidos.css'; // Importamos un archivo CSS específico para esta página
 import { createStyles } from 'antd-style';
+import { useAppState } from '@/lib/AppStateContext'; // Importar el contexto
 
 const { Text, Title } = Typography;
 
@@ -98,6 +99,9 @@ const useStyle = createStyles(({ css }) => {
 
 export default function PedidosPage() {
   const { styles } = useStyle();
+  // Obtenemos el contexto de la aplicación para los mensajes
+  const { message } = App.useApp();
+
   // Utilizamos un valor inicial para productos que incluya un ID único
   const initialProductId = `product-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   const [products, setProducts] = useState<OrderProduct[]>([
@@ -114,44 +118,133 @@ export default function PedidosPage() {
   ]);
   const [shippingCost, setShippingCost] = useState(0);
   const [proratedCosts, setProratedCosts] = useState<ProratedCost[]>([]);
+
+  // Obtener productos y categorías del contexto global
+  const {
+    products: contextProducts,
+    categories: contextCategories,
+    loading: contextLoading,
+  } = useAppState();
+
+  // Estados locales para los productos y categorías
   const [existingProducts, setExistingProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-  // Estado para filtros del autocompletado
-  const [searchText, setSearchText] = useState<string[]>([]);
-  const [loading, setLoading] = useState<boolean[]>([]);
+  // Estado para filtros del autocompletado - inicializar con un elemento vacío
+  const [searchText, setSearchText] = useState<string[]>(['']);
+  const [loading, setLoading] = useState<boolean[]>([false]);
 
-  // Estados para gestión de imágenes
-  const [fileList, setFileList] = useState<UploadFile[][]>([]);
-  const [imageUrls, setImageUrls] = useState<(string | null)[]>([]);
+  // Estados para gestión de imágenes - inicializar con elementos vacíos
+  const [fileList, setFileList] = useState<UploadFile[][]>([[]]);
+  const [imageUrls, setImageUrls] = useState<(string | null)[]>([null]);
 
   // Referencias para los campos de cantidad usando un array de refs
   const [quantityRefs, setQuantityRefs] = useState<QuantityRef[]>([]);
 
+  // Cargar datos del contexto
+  useEffect(() => {
+    if (contextProducts.length > 0 && contextCategories.length > 0) {
+      setExistingProducts(contextProducts);
+      setCategories(contextCategories);
+      setIsDataLoaded(true);
+    } else {
+      // Datos del contexto no disponibles
+    }
+  }, [contextProducts, contextCategories, contextLoading]);
+
+  // Si no hay datos en el contexto o como respaldo, cargar directamente de la API
+  useEffect(() => {
+    // Solo cargar de la API si no se cargó del contexto
+    if (!isDataLoaded && !contextLoading) {
+      const loadData = async () => {
+        try {
+          // Primero cargamos categorías porque son pocas
+          const categoriesResponse = await fetch('/api/categories');
+          if (!categoriesResponse.ok) {
+            throw new Error('Error al cargar categorías');
+          }
+          const categoriesData = await categoriesResponse.json();
+          setCategories(categoriesData);
+
+          // Luego cargamos productos (operación más pesada)
+          const productsResponse = await fetch('/api/products');
+          if (!productsResponse.ok) {
+            throw new Error('Error al cargar productos');
+          }
+          const productsData = await productsResponse.json();
+          setExistingProducts(productsData);
+
+          // Indicar que los datos están cargados
+          setIsDataLoaded(true);
+        } catch (error) {
+          toaster.error(
+            'Error al cargar datos: ' +
+              (error instanceof Error ? error.message : 'Error desconocido')
+          );
+        }
+      };
+
+      loadData();
+    }
+  }, [isDataLoaded, contextLoading]);
+
   // Memorizar las opciones de productos filtrados para mejorar rendimiento
   const productOptions = useMemo(() => {
-    return products.map((_, index) => {
-      if (!searchText[index]) return [];
+    const options = products.map((_, index) => {
+      // Si no hay texto de búsqueda o no hay productos existentes, devolver array vacío
+      if (!searchText[index] || !existingProducts || existingProducts.length === 0) return [];
 
-      return existingProducts
-        .filter(product =>
-          product.name.toLowerCase().includes(searchText[index]?.toLowerCase() || '')
+      const searchValue = searchText[index]?.toLowerCase() || '';
+
+      // Filtramos los productos que coinciden con el texto de búsqueda
+      const matchingProducts = existingProducts
+        .filter(
+          product => product && product.name && product.name.toLowerCase().includes(searchValue)
         )
         .map(product => ({
           value: product.name,
           label: `${product.name} ($${product.price})`,
         }));
+
+      // Si ya tenemos resultados, desactivamos el spinner para este índice
+      if (matchingProducts.length > 0 && loading[index]) {
+        setTimeout(() => {
+          if (loading[index]) {
+            const newLoading = [...loading];
+            newLoading[index] = false;
+            setLoading(newLoading);
+          }
+        }, 0);
+      } else if (matchingProducts.length === 0 && searchValue && loading[index]) {
+        // Si no hay resultados pero hay búsqueda, también desactivamos el spinner
+        setTimeout(() => {
+          if (loading[index]) {
+            const newLoading = [...loading];
+            newLoading[index] = false;
+            setLoading(newLoading);
+          }
+        }, 300);
+      }
+
+      return matchingProducts;
     });
-  }, [existingProducts, searchText, products]);
+
+    return options;
+  }, [existingProducts, searchText, products, loading]);
 
   // Función debounce para la búsqueda de productos
   const debouncedSearch = useCallback(
     (value: string, index: number) => {
-      const newSearchText = [...searchText];
-      newSearchText[index] = value;
-      setSearchText(newSearchText);
+      // Asegurarnos de que el valor existe
+      if (value !== undefined) {
+        const newSearchText = [...searchText];
+        newSearchText[index] = value;
+        setSearchText(newSearchText);
+      }
 
+      // Desactivar spinner después de procesar la búsqueda
       const newLoading = [...loading];
       newLoading[index] = false;
       setLoading(newLoading);
@@ -174,13 +267,30 @@ export default function PedidosPage() {
     // Actualizar el estado del producto inmediatamente para mejor UX
     handleChange(value, index, 'name');
 
-    // Marcar como cargando
-    const newLoading = [...loading];
-    newLoading[index] = true;
-    setLoading(newLoading);
+    // Marcar como cargando solo si hay un valor para buscar
+    if (value.trim()) {
+      const newLoading = [...loading];
+      newLoading[index] = true;
+      setLoading(newLoading);
 
-    // Ejecutar búsqueda con debounce
-    debouncedSearchWithDelay(value, index);
+      // Actualizar searchText inmediatamente para que funcione el filtrado
+      const newSearchText = [...searchText];
+      newSearchText[index] = value;
+      setSearchText(newSearchText);
+
+      // Ejecutar búsqueda con debounce para cualquier procesamiento adicional
+      debouncedSearchWithDelay(value, index);
+    } else {
+      // Si el campo está vacío, no mostrar el spinner
+      const newLoading = [...loading];
+      newLoading[index] = false;
+      setLoading(newLoading);
+
+      // Actualizar searchText para limpiar opciones
+      const newSearchText = [...searchText];
+      newSearchText[index] = '';
+      setSearchText(newSearchText);
+    }
   };
 
   useEffect(() => {
@@ -236,32 +346,6 @@ export default function PedidosPage() {
     }
   }, [products.length, quantityRefs]);
 
-  // Cargar datos iniciales
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        // Primero cargamos categorías porque son pocas
-        const categoriesResponse = await fetch('/api/categories');
-        const categoriesData = await categoriesResponse.json();
-
-        setCategories(categoriesData);
-
-        // Luego cargamos productos (operación más pesada)
-        const productsResponse = await fetch('/api/products');
-        const productsData = await productsResponse.json();
-
-        setExistingProducts(productsData);
-      } catch (error) {
-        toaster.error(
-          'Error al cargar datos: ' + (error instanceof Error ? error.message : 'Error desconocido')
-        );
-      }
-    };
-
-    loadData();
-    // Mantenemos la dependencia vacía porque solo queremos que se ejecute una vez al montar
-  }, []);
-
   const handleSelectProduct = (productName: string, index: number) => {
     // Buscar el producto seleccionado
     const selectedProduct = existingProducts.find(p => p.name === productName);
@@ -285,6 +369,16 @@ export default function PedidosPage() {
 
         setProducts(newProducts);
       }
+
+      // Desactivamos el spinner después de seleccionar
+      const newLoading = [...loading];
+      newLoading[index] = false;
+      setLoading(newLoading);
+
+      // También actualizamos el searchText para que coincida con el producto seleccionado
+      const newSearchText = [...searchText];
+      newSearchText[index] = selectedProduct.name;
+      setSearchText(newSearchText);
 
       // Después de seleccionar, enfocar el campo de cantidad
       if (quantityRefs[index] && quantityRefs[index].current) {
@@ -487,17 +581,26 @@ export default function PedidosPage() {
       const orderData = {
         products: products
           .filter(product => product.quantity > 0 && product.name.trim() !== '' && product.cost > 0)
-          .map(product => ({
-            quantity: product.quantity,
-            name: product.name.trim(),
-            cost: product.cost,
-            supplier: product.supplier.trim(),
-            imageUrl: product.imageUrl,
-            categoryId: product.categoryId,
-            categoryName: product.categoryName?.trim(),
-          })),
+          .map((product, index) => {
+            // Obtener el costo unitario con envío prorrateado
+            const unitCostWithShipping = proratedCosts[index]?.unitCostWithShipping || product.cost;
+
+            return {
+              quantity: product.quantity,
+              name: product.name.trim(),
+              cost: product.cost, // Costo base sin envío
+              supplier: product.supplier.trim(),
+              imageUrl: product.imageUrl,
+              categoryId: product.categoryId,
+              categoryName: product.categoryName?.trim(),
+              // Incluir el costo unitario con envío prorrateado
+              finalUnitCost: unitCostWithShipping,
+              // Incluir otros costos prorrateados para referencia
+              proratedShippingCost: proratedCosts[index]?.proratedShippingCost || 0,
+              totalCost: proratedCosts[index]?.totalCost || product.quantity * product.cost,
+            };
+          }),
         shippingCost,
-        proratedCosts,
       };
 
       // Enviar los datos
@@ -526,6 +629,7 @@ export default function PedidosPage() {
           imageUrl: '',
           categoryId: null,
           categoryName: '',
+          id: `product-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         },
       ]);
       setShippingCost(0);
@@ -693,11 +797,36 @@ export default function PedidosPage() {
             placeholder="Nombre del producto"
             value={product.name}
             options={productOptions[index]}
-            onChange={value => handleAutoCompleteChange(value, index)}
-            onSelect={value => handleSelectProduct(value, index)}
+            onChange={value => {
+              handleAutoCompleteChange(value, index);
+            }}
+            onSelect={value => {
+              handleSelectProduct(value, index);
+            }}
             filterOption={false}
             onKeyDown={e => handleKeyDown(e, index)}
-            notFoundContent={loading[index] ? <Spin size="small" /> : null}
+            notFoundContent={
+              loading[index] ? <Spin size="small" /> : <span>No hay resultados</span>
+            }
+            showSearch
+            defaultActiveFirstOption={false}
+            onBlur={() => {
+              // Desactivar el spinner si se pierde el foco
+              const newLoading = [...loading];
+              newLoading[index] = false;
+              setLoading(newLoading);
+            }}
+            onDropdownVisibleChange={open => {
+              // Si se cierra el dropdown, desactivar el spinner
+              if (!open) {
+                const newLoading = [...loading];
+                newLoading[index] = false;
+                setLoading(newLoading);
+              }
+            }}
+            popupMatchSelectWidth={false}
+            dropdownStyle={{ minWidth: '300px' }}
+            allowClear
           />
         );
       },
@@ -735,6 +864,7 @@ export default function PedidosPage() {
               className="category-autocomplete"
               popupMatchSelectWidth={true}
               dropdownStyle={{ zIndex: 1050 }}
+              allowClear
             />
           </div>
         );

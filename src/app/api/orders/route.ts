@@ -57,17 +57,19 @@ export async function POST(request: NextRequest) {
 
       const existingProduct = await prisma.product.findFirst({
         where: { name: product.name },
-        select: { id: true, stock: true },
+        select: { id: true, stock: true, price: true },
       });
 
       let productId;
+      let priceToUse = finalUnitCost;
+
       if (!existingProduct) {
         // Crear producto nuevo con la categoría
         const newProduct = await prisma.product.create({
           data: {
             name: product.name,
             stock: 0,
-            price: finalUnitCost,
+            price: finalUnitCost, // Usamos el precio con envío prorrateado
             image: product.imageUrl || null,
             category_id: categoryId,
           },
@@ -76,6 +78,13 @@ export async function POST(request: NextRequest) {
         productId = newProduct.id;
       } else {
         productId = existingProduct.id;
+
+        // Lógica para comparar precios:
+        // Si el precio existente es mayor que el nuevo, mantenemos el existente
+        // Si el precio nuevo es mayor, actualizamos al nuevo
+        if (existingProduct.price > finalUnitCost) {
+          priceToUse = existingProduct.price;
+        }
       }
 
       await prisma.order.create({
@@ -84,17 +93,18 @@ export async function POST(request: NextRequest) {
           quantity: parseInt(product.quantity),
           supplier: product.supplier || null,
           shipping_cost: (finalUnitCost - product.cost) * product.quantity,
+          // No incluimos los campos adicionales que no existen en el modelo
         },
       });
 
       const newStock = (existingProduct ? existingProduct.stock : 0) + parseInt(product.quantity);
 
-      // Actualizar el producto con el precio final (incluyendo el envío prorrateado) y categoría
+      // Actualizar el producto con el precio final y categoría
       await prisma.product.update({
         where: { id: productId },
         data: {
           stock: newStock,
-          price: finalUnitCost,
+          price: priceToUse, // Usar el precio determinado por la lógica anterior
           category_id: categoryId,
         },
       });
