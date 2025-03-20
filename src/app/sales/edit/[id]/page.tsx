@@ -518,6 +518,13 @@ export default function EditSalePage() {
     }, 0);
   };
 
+  // Añadir función para calcular el total en ARS
+  const calculateTotalArs = () => {
+    return saleItems.reduce((total, item) => {
+      return total + item.price_ars * item.quantity;
+    }, 0);
+  };
+
   // Extraer de forma segura el precio en ARS de un string formateado
   const extractArsPrice = (formattedPrice: string): string => {
     if (!formattedPrice) return 'AR$ 0.00';
@@ -651,7 +658,7 @@ export default function EditSalePage() {
   return (
     <div
       style={{
-        padding: '0px 8px 8px 8px',
+        padding: isMobile ? '0px 8px 8px 8px' : '16px',
         width: '100%',
         boxSizing: 'border-box',
         height: isMobile ? 'calc(100vh - 56px)' : 'auto',
@@ -1097,7 +1104,10 @@ export default function EditSalePage() {
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Text strong>Total ARS:</Text>
                 <Text strong style={{ color: '#52c41a', fontSize: 18 }}>
-                  {extractArsPrice(formatPriceWithExchange(calculateTotal(), sale?.exchange_rate))}
+                  {`AR$ ${calculateTotalArs().toLocaleString('es-AR', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}`}
                 </Text>
               </div>
             </div>
