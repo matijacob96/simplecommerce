@@ -15,7 +15,6 @@ import {
   Segmented,
   Select,
   DatePicker,
-  App,
   Grid,
   Tag,
 } from 'antd';
@@ -29,8 +28,6 @@ import {
 } from '@ant-design/icons';
 import { Sale } from '@/types';
 import { toNumber } from '@/utils/priceUtils';
-import { useAuth } from '@/lib/AuthContext';
-import { useRouter } from 'next/navigation';
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;

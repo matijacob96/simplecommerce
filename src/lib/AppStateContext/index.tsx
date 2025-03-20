@@ -339,8 +339,8 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
           fetchDolarBlue();
         }
       },
-      1000 * 60 * 15
-    ); // Actualizar cada 15 minutos
+      1000 * 60 * 5
+    ); // Actualizar cada 5 minutos
 
     return () => clearInterval(interval);
   }, []);

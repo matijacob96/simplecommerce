@@ -3,7 +3,7 @@ import { getErrorMessage } from '@/types/error-types';
 
 // Cache de la respuesta para no hacer demasiadas peticiones al sitio externo
 let cachedData: { compra: number; venta: number; timestamp: number } | null = null;
-const CACHE_LIFETIME = 1000 * 60 * 15; // 15 minutos
+const CACHE_LIFETIME = 1000 * 60 * 5; // 5 minutos
 
 // Valor por defecto en caso de no poder obtener el precio (1250 pesos)
 const DEFAULT_BLUE_RATE = 1250;
