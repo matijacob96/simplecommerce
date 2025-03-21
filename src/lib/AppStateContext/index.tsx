@@ -76,6 +76,7 @@ interface AppStateContextType {
     arsPrice: number;
     formattedUsd: string;
     formattedArs: string;
+    isValid: boolean;
   };
   refreshData: () => Promise<void>;
 }
@@ -228,7 +229,9 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
     if (!isMounted.current) return;
 
     try {
-      if (dolarBlue) {
+      // Limpiamos la caché cada vez que cambian factores que afectan el cálculo de precios
+      if (dolarBlue || categories.length > 0) {
+        console.log('Invaliding price cache due to changes in dolar or categories');
         priceCache.current = {};
       }
     } catch (error) {
@@ -529,30 +532,52 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
           arsPrice: 0,
           formattedUsd: formatUsdPrice(0),
           formattedArs: formatArsPrice(0),
+          isValid: false,
         };
       }
 
       try {
-        // Usar caché si existe
-        if (priceCache.current && priceCache.current[product.id]) {
-          return priceCache.current[product.id];
-        }
+        // Verificar si tenemos toda la información necesaria para un cálculo preciso
+        const hasValidDolarBlue =
+          dolarBlue && typeof dolarBlue.venta === 'number' && dolarBlue.venta > 0;
 
-        // Asegurar que el precio base sea un número
+        // Asegurar que el precio base sea un número válido
         const basePrice =
-          typeof product.price === 'number'
+          typeof product.price === 'number' && !isNaN(product.price) && product.price > 0
             ? product.price
             : typeof product.price === 'string'
               ? parseFloat(product.price)
               : 0;
 
-        // Si no hay dólar o categorías, usar cálculo simplificado
-        if (!dolarBlue || !categories.length) {
+        // Si el precio base no es válido, retornar con indicador de invalidez
+        if (basePrice <= 0) {
+          console.warn('Precio base inválido para producto:', product.id, product.name);
+          return {
+            usdPrice: 0,
+            arsPrice: 0,
+            formattedUsd: formatUsdPrice(0),
+            formattedArs: formatArsPrice(0),
+            isValid: false,
+          };
+        }
+
+        // Usar caché solo si el dólar blue es válido
+        if (hasValidDolarBlue && priceCache.current && priceCache.current[product.id]) {
+          return {
+            ...priceCache.current[product.id],
+            isValid: true,
+          };
+        }
+
+        // Si no hay dólar o categorías, marcar como no válido
+        if (!hasValidDolarBlue || !categories.length) {
+          console.warn('No se puede calcular precio precisamente: falta dólar blue o categorías');
           return {
             usdPrice: basePrice,
-            arsPrice: basePrice * 1000,
+            arsPrice: 0,
             formattedUsd: formatUsdPrice(basePrice),
-            formattedArs: formatArsPrice(basePrice * 1000),
+            formattedArs: 'Precio no disponible',
+            isValid: false,
           };
         }
 
@@ -580,17 +605,49 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
           }
         }
 
+        // Asegurar que el margen sea válido
+        if (isNaN(profitMargin) || profitMargin < 0) {
+          profitMargin = defaultProfitMargin;
+          console.warn(
+            `Margen de ganancia inválido para producto ${product.id}, usando valor por defecto`
+          );
+        }
+
         // Asegurar que el tipo de cambio sea un número
-        const exchangeRate =
-          typeof dolarBlue.venta === 'number'
-            ? dolarBlue.venta
-            : typeof dolarBlue.venta === 'string'
-              ? parseFloat(dolarBlue.venta)
-              : 1000;
+        const exchangeRate = hasValidDolarBlue ? dolarBlue.venta : 0;
+
+        if (exchangeRate <= 0) {
+          console.warn('Tipo de cambio inválido:', exchangeRate);
+          return {
+            usdPrice: basePrice,
+            arsPrice: 0,
+            formattedUsd: formatUsdPrice(basePrice),
+            formattedArs: 'Precio no disponible',
+            isValid: false,
+          };
+        }
 
         // Calcular precios
         const usdPrice = calculateUsdPrice(basePrice, profitMargin);
         const arsPrice = calculateArsPrice(usdPrice, exchangeRate);
+
+        // Validar resultados
+        if (isNaN(usdPrice) || usdPrice <= 0 || isNaN(arsPrice) || arsPrice <= 0) {
+          console.error('Cálculo de precios inválido:', {
+            basePrice,
+            profitMargin,
+            exchangeRate,
+            usdPrice,
+            arsPrice,
+          });
+          return {
+            usdPrice: basePrice,
+            arsPrice: 0,
+            formattedUsd: formatUsdPrice(basePrice),
+            formattedArs: 'Precio no disponible',
+            isValid: false,
+          };
+        }
 
         // Formatear precios
         const result = {
@@ -598,10 +655,11 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
           arsPrice,
           formattedUsd: formatUsdPrice(usdPrice),
           formattedArs: formatArsPrice(arsPrice),
+          isValid: true,
         };
 
         // Guardar en caché
-        if (priceCache.current) {
+        if (priceCache.current && result.isValid) {
           priceCache.current[product.id] = result;
         }
 
@@ -609,13 +667,13 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error('Error al calcular precios para producto:', product.id, error);
 
-        // En caso de error, usar el precio base directamente
-        const fallbackPrice = product.price || 0;
+        // En caso de error, indicar que el precio no es válido
         return {
-          usdPrice: fallbackPrice,
-          arsPrice: fallbackPrice * 1000,
-          formattedUsd: formatUsdPrice(fallbackPrice),
-          formattedArs: formatArsPrice(fallbackPrice * 1000),
+          usdPrice: 0,
+          arsPrice: 0,
+          formattedUsd: 'Error en cálculo',
+          formattedArs: 'Error en cálculo',
+          isValid: false,
         };
       }
     }) as (product: Product) => {
@@ -623,6 +681,7 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
       arsPrice: number;
       formattedUsd: string;
       formattedArs: string;
+      isValid: boolean;
     },
     [dolarBlue, categories, defaultProfitMargin]
   );
@@ -651,14 +710,24 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
           case 'price_asc':
             return sortedProducts.sort((a, b) => {
               try {
-                // Usamos getPrices de forma segura
+                // Obtenemos precios de ambos productos
                 const pricesA = getPrices(a);
                 const pricesB = getPrices(b);
-                return pricesA.arsPrice - pricesB.arsPrice;
+
+                // Si ambos precios son válidos, comparar normalmente
+                if (pricesA.isValid && pricesB.isValid) {
+                  return pricesA.arsPrice - pricesB.arsPrice;
+                }
+
+                // Si solo uno es válido, ese va primero (productos sin precio al final)
+                if (pricesA.isValid && !pricesB.isValid) return -1;
+                if (!pricesA.isValid && pricesB.isValid) return 1;
+
+                // Si ninguno es válido, mantener el orden original
+                return 0;
               } catch (e) {
                 console.error('Error comparando precios ASC:', e);
-                // Si hay error, comparar por precio base
-                return (a.price || 0) - (b.price || 0);
+                return 0;
               }
             });
 
@@ -667,10 +736,21 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
               try {
                 const pricesA = getPrices(a);
                 const pricesB = getPrices(b);
-                return pricesB.arsPrice - pricesA.arsPrice;
+
+                // Si ambos precios son válidos, comparar normalmente
+                if (pricesA.isValid && pricesB.isValid) {
+                  return pricesB.arsPrice - pricesA.arsPrice;
+                }
+
+                // Si solo uno es válido, ese va primero (productos sin precio al final)
+                if (pricesA.isValid && !pricesB.isValid) return -1;
+                if (!pricesA.isValid && pricesB.isValid) return 1;
+
+                // Si ninguno es válido, mantener el orden original
+                return 0;
               } catch (e) {
                 console.error('Error comparando precios DESC:', e);
-                return (b.price || 0) - (a.price || 0);
+                return 0;
               }
             });
 
@@ -774,6 +854,21 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
 
+      // Invalidar caché inmediatamente antes de cargar nuevos datos
+      priceCache.current = {};
+
+      // Cargar dólar blue primero para asegurar que tenemos el tipo de cambio actualizado
+      const dolarResponse = await fetch('/api/dolar-blue');
+      if (dolarResponse.ok && isMounted.current) {
+        const { data } = await dolarResponse.json();
+        setDolarBlue(data);
+
+        // Log para debug
+        console.log('Tipo de cambio actualizado:', data?.venta);
+      } else {
+        console.error('Error al cargar dólar blue');
+      }
+
       // Cargar categorías
       const catResponse = await fetch('/api/categories');
       if (catResponse.ok && isMounted.current) {
@@ -810,18 +905,6 @@ function AppStateProviderContent({ children }: { children: React.ReactNode }) {
         if (isMounted.current) {
           setProducts([]);
         }
-      }
-
-      // Cargar dólar blue
-      const dolarResponse = await fetch('/api/dolar-blue');
-      if (dolarResponse.ok && isMounted.current) {
-        const { data } = await dolarResponse.json();
-        setDolarBlue(data);
-      }
-
-      // Resetear caché
-      if (isMounted.current) {
-        priceCache.current = {};
       }
 
       // Aplicar filtros a la URL si estamos en la página principal

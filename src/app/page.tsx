@@ -208,8 +208,9 @@ function CatalogContent() {
         return {
           usdPrice: 0,
           arsPrice: 0,
-          formattedUsd: '$ 0.00',
-          formattedArs: '$ 0.00',
+          formattedUsd: 'Error',
+          formattedArs: 'Error',
+          isValid: false,
         };
       }
     },
@@ -562,6 +563,45 @@ function CatalogContent() {
                     </Empty>
                   ) : (
                     <Row gutter={[16, 16]}>
+                      {loadingDolar && !dolarBlue && (
+                        <Col span={24}>
+                          <Card style={{ textAlign: 'center', marginBottom: 16 }}>
+                            <Space direction="vertical" align="center">
+                              <Spin />
+                              <Text>Cargando cotización del dólar...</Text>
+                              <Text type="secondary">
+                                Los precios se mostrarán correctamente en un momento
+                              </Text>
+                            </Space>
+                          </Card>
+                        </Col>
+                      )}
+
+                      {!loadingDolar && !dolarBlue && (
+                        <Col span={24}>
+                          <Card
+                            style={{
+                              textAlign: 'center',
+                              marginBottom: 16,
+                              background: 'rgba(255, 77, 79, 0.1)',
+                              borderColor: '#ff4d4f',
+                            }}
+                          >
+                            <Space direction="vertical" align="center">
+                              <Text type="danger" strong>
+                                No se pudo cargar la cotización del dólar
+                              </Text>
+                              <Text type="secondary">
+                                Los precios pueden mostrarse incorrectamente
+                              </Text>
+                              <Button danger onClick={refreshData}>
+                                Actualizar cotización
+                              </Button>
+                            </Space>
+                          </Card>
+                        </Col>
+                      )}
+
                       {filteredProducts.map(product => {
                         // Verificación básica de producto
                         if (!product || !product.id) return null;
@@ -630,27 +670,56 @@ function CatalogContent() {
                                       justify="space-between"
                                       style={{ marginBottom: '12px' }}
                                     >
-                                      <Col>
-                                        <Text
-                                          style={{
-                                            fontSize: 14,
-                                            color: '#8c8c8c',
-                                          }}
-                                        >
-                                          {prices.formattedUsd}
-                                        </Text>
-                                      </Col>
-                                      <Col>
-                                        <Title
-                                          level={3}
-                                          style={{
-                                            margin: 0,
-                                            color: '#52c41a',
-                                          }}
-                                        >
-                                          {prices.formattedArs}
-                                        </Title>
-                                      </Col>
+                                      {prices.isValid ? (
+                                        <>
+                                          <Col>
+                                            <Text
+                                              style={{
+                                                fontSize: 14,
+                                                color: '#8c8c8c',
+                                              }}
+                                            >
+                                              {prices.formattedUsd}
+                                            </Text>
+                                          </Col>
+                                          <Col>
+                                            <Title
+                                              level={3}
+                                              style={{
+                                                margin: 0,
+                                                color: '#52c41a',
+                                              }}
+                                            >
+                                              {prices.formattedArs}
+                                            </Title>
+                                          </Col>
+                                        </>
+                                      ) : (
+                                        <Col span={24}>
+                                          <div
+                                            style={{
+                                              background: 'rgba(255, 77, 79, 0.1)',
+                                              padding: '8px',
+                                              borderRadius: '4px',
+                                              marginBottom: '4px',
+                                              textAlign: 'center',
+                                            }}
+                                          >
+                                            <Text type="danger" strong>
+                                              Precio no disponible
+                                            </Text>
+                                            <div style={{ marginTop: '4px' }}>
+                                              <Button
+                                                size="small"
+                                                danger
+                                                onClick={() => refreshData()}
+                                              >
+                                                Actualizar datos
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        </Col>
+                                      )}
                                     </Row>
 
                                     <Divider style={{ margin: '0 0 12px 0' }} />
@@ -719,24 +788,50 @@ function CatalogContent() {
                                             <Spin size="small" />
                                           ) : (
                                             <div style={{ textAlign: 'right' }}>
-                                              <Text
-                                                style={{
-                                                  fontSize: 14,
-                                                  color: '#8c8c8c',
-                                                  display: 'block',
-                                                }}
-                                              >
-                                                {prices.formattedUsd}
-                                              </Text>
-                                              <Title
-                                                level={3}
-                                                style={{
-                                                  margin: 0,
-                                                  color: '#52c41a',
-                                                }}
-                                              >
-                                                {prices.formattedArs}
-                                              </Title>
+                                              {prices.isValid ? (
+                                                <>
+                                                  <Text
+                                                    style={{
+                                                      fontSize: 14,
+                                                      color: '#8c8c8c',
+                                                      display: 'block',
+                                                    }}
+                                                  >
+                                                    {prices.formattedUsd}
+                                                  </Text>
+                                                  <Title
+                                                    level={3}
+                                                    style={{
+                                                      margin: 0,
+                                                      color: '#52c41a',
+                                                    }}
+                                                  >
+                                                    {prices.formattedArs}
+                                                  </Title>
+                                                </>
+                                              ) : (
+                                                <div
+                                                  style={{
+                                                    background: 'rgba(255, 77, 79, 0.1)',
+                                                    padding: '8px',
+                                                    borderRadius: '4px',
+                                                    textAlign: 'center',
+                                                  }}
+                                                >
+                                                  <Text type="danger" strong>
+                                                    Precio no disponible
+                                                  </Text>
+                                                  <div style={{ marginTop: '4px' }}>
+                                                    <Button
+                                                      size="small"
+                                                      danger
+                                                      onClick={() => refreshData()}
+                                                    >
+                                                      Actualizar datos
+                                                    </Button>
+                                                  </div>
+                                                </div>
+                                              )}
                                             </div>
                                           )}
                                         </Col>
